@@ -58,8 +58,19 @@ button {
   align-items: center;
   gap: 8px;
   padding: 8px 12px;
-  border-bottom: 1px solid var(--line);
+  border-bottom: 1px solid rgba(0, 0, 0, 0.06);
   flex: none;
+  background: var(--month-bg, var(--bg));
+  transition: background 0.3s;
+}
+.topbar .btn {
+  background: rgba(255, 255, 255, 0.75);
+}
+.topbar .btn.primary {
+  background: var(--blue);
+}
+.topbar .btn.active {
+  background: #e8f0fe;
 }
 
 .brand {
@@ -231,8 +242,10 @@ button {
   display: flex;
   gap: 6px;
   overflow-x: auto;
-  padding: 6px 12px;
+  padding: 6px 12px 8px;
   border-bottom: 1px solid var(--line);
+  background: var(--month-bg, var(--bg));
+  transition: background 0.3s;
   scrollbar-width: none;
   -webkit-overflow-scrolling: touch;
   overscroll-behavior-x: contain;
@@ -251,16 +264,29 @@ button {
   border: none;
   border-radius: 16px;
   padding: 5px 14px;
-  background: var(--bg2);
+  background: rgba(255, 255, 255, 0.75);
   font-size: 14px;
   white-space: nowrap;
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.05);
 }
 .strip-chip:hover {
-  background: #e8eaed;
+  background: #fff;
 }
+/* 今月: 青い枠と太字 */
+.strip-chip.today {
+  box-shadow: inset 0 0 0 2px var(--blue);
+  color: var(--blue);
+  font-weight: 700;
+}
+/* 表示中の月: 青で塗りつぶし */
 .strip-chip.active {
   background: var(--blue);
   color: #fff;
+  box-shadow: none;
+}
+/* 表示中かつ今月: 塗りつぶしの内側に白い輪 */
+.strip-chip.active.today {
+  box-shadow: inset 0 0 0 2px #fff, inset 0 0 0 4px var(--blue);
 }
 .strip-year {
   flex: none;

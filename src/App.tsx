@@ -58,6 +58,22 @@ const INK_SIZES: [string, number][] = [
 
 type EditorState = { mode: 'create'; date: Date } | { mode: 'edit'; event: CalEvent } | null;
 
+// 月ごとのヘッダー色(季節の淡い色)
+const MONTH_COLORS = [
+  '#e3ecf7', // 1月 雪空
+  '#f6e3ec', // 2月 梅
+  '#fbe4ea', // 3月 桜
+  '#e6f2df', // 4月 若葉
+  '#dff0e8', // 5月 新緑
+  '#e6e4f4', // 6月 紫陽花
+  '#dcefff', // 7月 夏空
+  '#fdf1cf', // 8月 向日葵
+  '#f9e6d3', // 9月 月見
+  '#fbe3cc', // 10月 紅葉はじめ
+  '#f4dcd3', // 11月 紅葉
+  '#e2e8f2', // 12月 冬
+];
+
 const DEBUG = new URLSearchParams(location.search).has('debug');
 
 /** ?debug=1 のとき、直近のペン・タッチイベントを画面に出す */
@@ -119,6 +135,12 @@ export default function App() {
 
   const year = month.getFullYear();
   const month0 = month.getMonth();
+  const monthColor = MONTH_COLORS[month0];
+
+  // PWA のステータスバー色も月に合わせる
+  useEffect(() => {
+    document.querySelector('meta[name="theme-color"]')?.setAttribute('content', monthColor);
+  }, [monthColor]);
 
   const report = useCallback((e: unknown) => {
     const msg = e instanceof Error ? e.message : String(e);
@@ -528,7 +550,10 @@ export default function App() {
   const selectedKey = selected ? ymdKey(selected) : null;
 
   return (
-    <div className={'app' + (selected ? ' has-panel' : '') + (inkMode ? ' inking' : '')}>
+    <div
+      className={'app' + (selected ? ' has-panel' : '') + (inkMode ? ' inking' : '')}
+      style={{ ['--month-bg' as string]: monthColor }}
+    >
       <header className="topbar">
         <button type="button" className="icon-btn" aria-label="メニュー" onClick={() => setSidebarOpen((v) => !v)}>
           ☰

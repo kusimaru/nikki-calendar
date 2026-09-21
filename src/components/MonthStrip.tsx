@@ -20,6 +20,7 @@ export default function MonthStrip({ year, month0, onChange }: Props) {
     wrap.scrollTo({ left: Math.max(0, left), behavior: 'smooth' });
   }, [year, month0]);
 
+  const now = new Date();
   const years = [year - 1, year, year + 1];
   return (
     <div ref={wrapRef} className="month-strip" role="tablist" aria-label="月の選択">
@@ -30,6 +31,7 @@ export default function MonthStrip({ year, month0, onChange }: Props) {
           </button>
           {Array.from({ length: 12 }, (_, m) => {
             const active = y === year && m === month0;
+            const isToday = y === now.getFullYear() && m === now.getMonth();
             return (
               <button
                 key={m}
@@ -37,7 +39,8 @@ export default function MonthStrip({ year, month0, onChange }: Props) {
                 type="button"
                 role="tab"
                 aria-selected={active}
-                className={'strip-chip' + (active ? ' active' : '')}
+                className={'strip-chip' + (active ? ' active' : '') + (isToday ? ' today' : '')}
+                title={isToday ? '今月' : undefined}
                 onClick={() => onChange(y, m)}
               >
                 {m + 1}月
