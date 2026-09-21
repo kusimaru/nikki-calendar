@@ -675,6 +675,25 @@ button {
   outline: 2px dashed var(--blue);
   outline-offset: -4px;
 }
+/* 全画面: 月表示を覆う */
+.day-panel.wide {
+  position: absolute;
+  inset: 0;
+  width: auto;
+  z-index: 25;
+  border-left: none;
+  padding-left: 24px;
+  padding-right: 24px;
+}
+.day-panel.wide .day-section {
+  max-width: 1100px;
+}
+.day-head-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex: none;
+}
 .day-head {
   display: flex;
   align-items: flex-start;
@@ -1047,6 +1066,10 @@ button {
     z-index: 25;
     border-left: none;
     padding-bottom: calc(40px + env(safe-area-inset-bottom));
+  }
+  /* 狭い画面では常に全画面なので切替ボタンは出さない */
+  .wide-toggle {
+    display: none;
   }
   .cell {
     padding: 2px 2px 0;

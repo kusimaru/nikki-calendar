@@ -20,6 +20,9 @@ interface Props {
   onCreateEvent(): void;
   onOpenEvent(ev: CalEvent): void;
   onClose(): void;
+  /** 全画面表示(広い画面のみ意味を持つ) */
+  wide: boolean;
+  onToggleWide(): void;
 }
 
 const SAVE_LABEL: Record<SaveState, string> = {
@@ -96,7 +99,7 @@ export default function DayPanel(p: Props) {
 
   return (
     <aside
-      className={'day-panel' + (dragOver ? ' drag' : '')}
+      className={'day-panel' + (dragOver ? ' drag' : '') + (p.wide ? ' wide' : '')}
       onPaste={onPaste}
       onDragOver={(e) => {
         e.preventDefault();
@@ -123,9 +126,19 @@ export default function DayPanel(p: Props) {
             <span className="tag">{info.eto}</span>
           </div>
         </div>
-        <button type="button" className="icon-btn" aria-label="閉じる" onClick={p.onClose}>
-          ×
-        </button>
+        <div className="day-head-actions">
+          <button
+            type="button"
+            className="btn-small wide-toggle"
+            title={p.wide ? '元の幅に戻す(f キー)' : '全画面にする(f キー)'}
+            onClick={p.onToggleWide}
+          >
+            {p.wide ? '⤡ 戻す' : '⤢ 全画面'}
+          </button>
+          <button type="button" className="icon-btn" aria-label="閉じる" onClick={p.onClose}>
+            ×
+          </button>
+        </div>
       </header>
 
       <section className="day-section">

@@ -147,6 +147,12 @@ export default function App() {
   inkModeRef.current = inkMode;
   const [slide, setSlide] = useState<'left' | 'right' | null>(null);
   const [yohakuOpen, setYohakuOpen] = useState(false);
+  const [panelWide, setPanelWide] = useState(() => localStorage.getItem('panel_wide') === '1');
+  const togglePanelWide = () =>
+    setPanelWide((v) => {
+      localStorage.setItem('panel_wide', v ? '0' : '1');
+      return !v;
+    });
 
   const year = month.getFullYear();
   const month0 = month.getMonth();
@@ -578,6 +584,7 @@ export default function App() {
         else setSelected(null);
       }
       else if (e.key === 'c' && selected && signedIn) setEditor({ mode: 'create', date: selected });
+      else if (e.key === 'f' && selected) togglePanelWide();
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
@@ -801,6 +808,7 @@ export default function App() {
           <ul className="help">
             <li>日付をクリック: その日の予定・日記を開く</li>
             <li>ダブルクリック / c キー: 予定を作成</li>
+            <li>f キー: 日付の詳細を全画面 / 元に戻す</li>
             <li>t: 今日, j/k: 翌月/前月</li>
             <li>✎ 手書き: 押すと月表示の上に直接書けます。書き終えたら「完了」</li>
           </ul>
@@ -867,6 +875,8 @@ export default function App() {
             onCreateEvent={() => setEditor({ mode: 'create', date: selected })}
             onOpenEvent={(ev) => setEditor({ mode: 'edit', event: ev })}
             onClose={() => setSelected(null)}
+            wide={panelWide}
+            onToggleWide={togglePanelWide}
           />
         )}
       </div>
