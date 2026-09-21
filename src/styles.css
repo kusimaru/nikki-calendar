@@ -224,6 +224,19 @@ button {
 }
 .scrim {
   display: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+}
+.sidebar-head {
+  display: none;
+  align-items: center;
+  justify-content: space-between;
+  font-weight: 500;
+  margin-bottom: 4px;
+}
+.sidebar.collapsed {
+  display: none;
 }
 
 .main {
@@ -929,6 +942,12 @@ button {
   .sidebar.open {
     transform: none;
     box-shadow: 0 0 20px rgba(0, 0, 0, 0.2);
+  }
+  .sidebar.collapsed {
+    display: block;
+  }
+  .sidebar-head {
+    display: flex;
   }
   .scrim {
     display: block;

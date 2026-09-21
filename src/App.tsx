@@ -112,6 +112,18 @@ export default function App() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  // 広い画面での折りたたみ(狭い画面では sidebarOpen のオーバーレイ表示を使う)
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(() => localStorage.getItem('sidebar_collapsed') === '1');
+  const toggleSidebar = () => {
+    if (window.matchMedia('(max-width: 1100px)').matches) {
+      setSidebarOpen((v) => !v);
+    } else {
+      setSidebarCollapsed((v) => {
+        localStorage.setItem('sidebar_collapsed', v ? '0' : '1');
+        return !v;
+      });
+    }
+  };
   const [loadingEvents, setLoadingEvents] = useState(false);
   const [inkMode, setInkMode] = useState(false);
   const [inkState, setInkState] = useState<InkState>(() => defaultInkState(INK_SIZES[1][1]));
@@ -555,7 +567,7 @@ export default function App() {
       style={{ ['--month-bg' as string]: monthColor }}
     >
       <header className="topbar">
-        <button type="button" className="icon-btn" aria-label="メニュー" onClick={() => setSidebarOpen((v) => !v)}>
+        <button type="button" className="icon-btn" aria-label="メニュー" onClick={toggleSidebar}>
           ☰
         </button>
         <span className="brand">日記カレンダー</span>
@@ -678,7 +690,13 @@ export default function App() {
       )}
 
       <div className="body">
-        <nav className={'sidebar' + (sidebarOpen ? ' open' : '')}>
+        <nav className={'sidebar' + (sidebarOpen ? ' open' : '') + (sidebarCollapsed ? ' collapsed' : '')}>
+          <div className="sidebar-head">
+            <span>メニュー</span>
+            <button type="button" className="icon-btn" aria-label="メニューを閉じる" onClick={() => setSidebarOpen(false)}>
+              ×
+            </button>
+          </div>
           <h2>マイカレンダー</h2>
           {calendars.length === 0 && <p className="muted small">{signedIn ? '読み込み中…' : 'サインインすると表示されます'}</p>}
           <ul className="cal-list">
@@ -717,7 +735,7 @@ export default function App() {
             <li>✎ 手書き: 押すと月表示の上に直接書けます。書き終えたら「完了」</li>
           </ul>
         </nav>
-        {sidebarOpen && <div className="scrim" onClick={() => setSidebarOpen(false)} />}
+        {sidebarOpen && <button type="button" className="scrim" aria-label="メニューを閉じる" onClick={() => setSidebarOpen(false)} />}
 
         <main ref={mainRef} className="main">
           <MonthStrip year={year} month0={month0} onChange={(y, m) => setMonth(new Date(y, m, 1))} />
