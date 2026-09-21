@@ -71,21 +71,28 @@ export function blockTouchGestures(
   getScroller?: () => HTMLElement | null,
 ): () => void {
   let lastY: number | null = null;
-  const avgY = (e: TouchEvent) => {
-    let sum = 0;
-    for (let i = 0; i < e.touches.length; i++) sum += e.touches[i].clientY;
-    return sum / e.touches.length;
+  // ペン(stylus)の接触を除いた「指」だけを数える。置いた手のひら + ペン先を 2 本指と誤認しないため
+  const fingers = (e: TouchEvent): Touch[] => {
+    const out: Touch[] = [];
+    for (let i = 0; i < e.touches.length; i++) {
+      const t = e.touches[i] as Touch & { touchType?: string };
+      if (t.touchType !== 'stylus') out.push(t);
+    }
+    return out;
   };
+  const avgY = (ts: Touch[]) => ts.reduce((sum, t) => sum + t.clientY, 0) / ts.length;
   const onStart = (e: TouchEvent) => {
     if (!isActive()) return;
     if (e.cancelable) e.preventDefault();
-    lastY = e.touches.length >= 2 ? avgY(e) : null;
+    const f = fingers(e);
+    lastY = f.length >= 2 ? avgY(f) : null;
   };
   const onMove = (e: TouchEvent) => {
     if (!isActive()) return;
     if (e.cancelable) e.preventDefault();
-    if (e.touches.length >= 2) {
-      const y = avgY(e);
+    const f = fingers(e);
+    if (f.length >= 2) {
+      const y = avgY(f);
       if (lastY !== null) {
         const sc = getScroller?.();
         if (sc) sc.scrollTop -= y - lastY;
@@ -96,7 +103,8 @@ export function blockTouchGestures(
     }
   };
   const onEnd = (e: TouchEvent) => {
-    lastY = e.touches.length >= 2 ? avgY(e) : null;
+    const f = fingers(e);
+    lastY = f.length >= 2 ? avgY(f) : null;
   };
   el.addEventListener('touchstart', onStart, { passive: false });
   el.addEventListener('touchmove', onMove, { passive: false });
