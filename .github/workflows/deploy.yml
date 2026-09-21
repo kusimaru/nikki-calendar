@@ -20,8 +20,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      # 事前にリポジトリの Settings → Pages で Source を "GitHub Actions" にしておく
+      # Pages が未設定なら自動で有効化する(Source = GitHub Actions)
       - uses: actions/configure-pages@v5
+        with:
+          enablement: true
       - uses: actions/setup-node@v4
         with:
           node-version: 24
