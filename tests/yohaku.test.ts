@@ -68,6 +68,27 @@ test('未知のレイヤー ID は先頭レイヤーへ寄せ、高さは上限�
   assert.equal(page.title, '日記カレンダー');
 });
 
+test('文章を含めると文字ブロックが先頭に置かれ、線はその下にずれる', () => {
+  const page = convertToYohakuPage({
+    gridStrokes: [],
+    freeStrokes: [{ points: [[0, 0, 0.5]], color: '#202124', size: 3, pen: false, layer: 'L1' }],
+    freeHeight: 700,
+    layers,
+    defaultLayerId: 'L1',
+    title: '2026年9月21日',
+    id: 'p',
+    now: 1,
+    text: '今日は敬老の日。\n散歩をした。',
+  });
+  assert.equal(page.blocks.length, 1);
+  const b = page.blocks[0];
+  assert.equal(b.type, 'text');
+  assert.equal(b.text, '今日は敬老の日。\n散歩をした。');
+  assert.ok(b.height >= 120);
+  assert.equal(page.strokes[0].points[0][1], 64 + b.height + 40);
+  assert.ok(page.height >= 64 + b.height + 40 + 840);
+});
+
 test('base64 分割は余白ノートと同じ規則', () => {
   const chunks = encodeChunks({ a: 'あ' });
   assert.equal(chunks.length, 1);

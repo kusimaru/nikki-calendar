@@ -24,6 +24,7 @@ interface Props {
   /** 全画面表示(広い画面のみ意味を持つ) */
   wide: boolean;
   onToggleWide(): void;
+  onSendYohaku(): void;
 }
 
 const SAVE_LABEL: Record<SaveState, string> = {
@@ -249,6 +250,15 @@ export default function DayPanel(p: Props) {
       <section className="day-section">
         <div className="section-head">
           <h3>手書き</h3>
+          <button
+            type="button"
+            className="btn-small"
+            disabled={!p.entry}
+            onClick={p.onSendYohaku}
+            title="この日の手書き(と日記の文章)を余白ノートの新しいページとして送ります"
+          >
+            余白ノートへ送る
+          </button>
         </div>
         {p.entry && (
           <Handwriting

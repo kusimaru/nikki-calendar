@@ -24,11 +24,21 @@ export interface YohakuStroke {
   layer: string;
 }
 
+export interface YohakuTextBlock {
+  id: string;
+  type: 'text';
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  text: string;
+}
+
 export interface YohakuPage {
   id: string;
   title: string;
   sectionId?: string;
-  blocks: never[];
+  blocks: YohakuTextBlock[];
   height: number;
   strokes: YohakuStroke[];
   layers: YohakuLayer[];
@@ -49,12 +59,24 @@ export interface ConvertInput {
   sectionId?: string;
   id: string;
   now: number;
+  /** ページ上部に置く文章(日記の本文など)。空なら置かない */
+  text?: string;
 }
 
 /** カレンダー上の線を載せる領域の高さ(ページ幅 1200 に対して 4:3) */
 const GRID_AREA_HEIGHT = 900;
 const GAP = 40;
 const SCALE = YOHAKU_PAGE_WIDTH / 1000;
+const TEXT_X = 64;
+const TEXT_Y = 64;
+const TEXT_WIDTH = YOHAKU_PAGE_WIDTH - TEXT_X - 64;
+
+/** 文章の行数からブロックの高さを見積もる(余白ノート側で編集すれば自動で広がる) */
+export function estimateTextHeight(text: string): number {
+  const charsPerLine = 44;
+  const lines = text.split('\n').reduce((n, line) => n + Math.max(1, Math.ceil(line.length / charsPerLine)), 0);
+  return clamp(lines * 30 + 40, 120, 2400);
+}
 
 function clamp(v: number, lo: number, hi: number): number {
   return Math.min(hi, Math.max(lo, v));
@@ -111,20 +133,29 @@ export function convertToYohakuPage(input: ConvertInput): YohakuPage {
   layers = layers.slice(0, YOHAKU_MAX_LAYERS);
   const layerIds = new Set(layers.map((l) => l.id));
 
+  const text = (input.text ?? '').trim();
+  const blocks: YohakuTextBlock[] = [];
+  let top = 0;
+  if (text) {
+    const h = estimateTextHeight(text);
+    blocks.push({ id: `${input.id}-text`, type: 'text', x: TEXT_X, y: TEXT_Y, width: TEXT_WIDTH, height: h, text: text.slice(0, 200000) });
+    top = TEXT_Y + h + GAP;
+  }
   const hasGrid = input.gridStrokes.length > 0;
-  const freeOffset = hasGrid ? GRID_AREA_HEIGHT + GAP : 0;
+  const gridOffset = top;
+  const freeOffset = hasGrid ? gridOffset + GRID_AREA_HEIGHT + GAP : top;
   const freeMaxY = freeOffset + input.freeHeight * SCALE;
   const height = clamp(Math.ceil(freeMaxY + GAP), YOHAKU_MIN_HEIGHT, YOHAKU_MAX_HEIGHT);
 
   const strokes: YohakuStroke[] = [
-    ...convertStrokes(input.gridStrokes, SCALE, GRID_AREA_HEIGHT / 1000, 0, height, layerIds, fallbackId),
+    ...convertStrokes(input.gridStrokes, SCALE, GRID_AREA_HEIGHT / 1000, gridOffset, height, layerIds, fallbackId),
     ...convertStrokes(input.freeStrokes, SCALE, SCALE, freeOffset, height, layerIds, fallbackId),
   ];
 
   const page: YohakuPage = {
     id: input.id,
     title: input.title.slice(0, 120) || '日記カレンダー',
-    blocks: [],
+    blocks,
     height,
     strokes,
     layers,

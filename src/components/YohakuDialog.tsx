@@ -15,10 +15,15 @@ import {
 import { convertToYohakuPage } from '../lib/yohakuConvert.ts';
 
 interface Props {
-  monthLabel: string;
-  gridStrokes: Stroke[];
+  /** ページ題名の初期値 */
+  defaultTitle: string;
+  /** カレンダー上の線(指定すると「含める」の選択肢が出る) */
+  gridStrokes?: Stroke[];
+  /** 主となる手書き(フリースペース or 日付の手書き欄。幅 1000 基準) */
   freeStrokes: Stroke[];
   freeHeight: number;
+  /** 一緒に送れる文章(日記の本文など) */
+  text?: string;
   layers: InkLayer[];
   defaultLayerId: string;
   onClose(): void;
@@ -33,7 +38,9 @@ export default function YohakuDialog(p: Props) {
   const [meta, setMeta] = useState<YohakuMeta | null>(null);
   const [sectionId, setSectionId] = useState(() => localStorage.getItem(SECTION_KEY) ?? '');
   const [includeGrid, setIncludeGrid] = useState(false);
-  const [title, setTitle] = useState(`${p.monthLabel} フリースペース`);
+  const [includeText, setIncludeText] = useState(true);
+  const [title, setTitle] = useState(p.defaultTitle);
+  const hasText = Boolean(p.text && p.text.trim());
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<{ kind: 'ok' | 'error'; text: string } | null>(null);
 
@@ -77,7 +84,8 @@ export default function YohakuDialog(p: Props) {
     return meta.sections.map((s) => ({ id: s.id, label: `${nbName(s.notebookId)} › ${s.name}` }));
   }, [meta]);
 
-  const strokeCount = p.freeStrokes.length + (includeGrid ? p.gridStrokes.length : 0);
+  const strokeCount = p.freeStrokes.length + (includeGrid ? (p.gridStrokes?.length ?? 0) : 0);
+  const canSend = strokeCount > 0 || (hasText && includeText);
 
   const login = async (e: FormEvent) => {
     e.preventDefault();
@@ -99,9 +107,10 @@ export default function YohakuDialog(p: Props) {
     setMessage(null);
     try {
       const page = convertToYohakuPage({
-        gridStrokes: includeGrid ? p.gridStrokes : [],
+        gridStrokes: includeGrid ? (p.gridStrokes ?? []) : [],
         freeStrokes: p.freeStrokes,
         freeHeight: p.freeHeight,
+        text: hasText && includeText ? p.text : undefined,
         layers: p.layers,
         defaultLayerId: p.defaultLayerId,
         title,
@@ -173,17 +182,27 @@ export default function YohakuDialog(p: Props) {
               </select>
             </label>
             {meta && sections.length === 0 && <p className="muted small">セクションの一覧が取得できませんでした。余白ノート側で一度同期すると選べるようになります。</p>}
-            <label className="row check">
-              <input type="checkbox" checked={includeGrid} onChange={(e) => setIncludeGrid(e.target.checked)} />
-              カレンダー上の手書きもページの上部に含める
-            </label>
-            <p className="muted small">送る線の数: {strokeCount} 本。レイヤー分けは余白ノートのレイヤーとして引き継がれます。</p>
+            {p.gridStrokes && (
+              <label className="row check">
+                <input type="checkbox" checked={includeGrid} onChange={(e) => setIncludeGrid(e.target.checked)} />
+                カレンダー上の手書きもページの上部に含める
+              </label>
+            )}
+            {hasText && (
+              <label className="row check">
+                <input type="checkbox" checked={includeText} onChange={(e) => setIncludeText(e.target.checked)} />
+                日記の文章もページの上部に文字として含める
+              </label>
+            )}
+            <p className="muted small">
+              送る線の数: {strokeCount} 本{hasText && includeText ? '、文章あり' : ''}。レイヤー分けは余白ノートのレイヤーとして引き継がれます。
+            </p>
             <div className="modal-actions">
               <span className="spacer" />
               <button type="button" className="btn" onClick={p.onClose}>
                 閉じる
               </button>
-              <button type="button" className="btn primary" disabled={busy || strokeCount === 0} onClick={send}>
+              <button type="button" className="btn primary" disabled={busy || !canSend} onClick={send}>
                 {busy ? '送信中…' : '送る'}
               </button>
             </div>

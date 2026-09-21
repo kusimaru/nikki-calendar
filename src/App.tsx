@@ -147,7 +147,7 @@ export default function App() {
   const inkModeRef = useRef(inkMode);
   inkModeRef.current = inkMode;
   const [slide, setSlide] = useState<'left' | 'right' | null>(null);
-  const [yohakuOpen, setYohakuOpen] = useState(false);
+  const [yohakuTarget, setYohakuTarget] = useState<'month' | 'day' | null>(null);
   const [panelWide, setPanelWide] = useState(() => localStorage.getItem('panel_wide') === '1');
   const togglePanelWide = () =>
     setPanelWide((v) => {
@@ -825,7 +825,7 @@ export default function App() {
               dimOthers={dimOthers}
               onChange={changeFree}
               onGrow={growFree}
-              onSend={() => setYohakuOpen(true)}
+              onSend={() => setYohakuTarget('month')}
             />
           )}
           </div>
@@ -847,21 +847,33 @@ export default function App() {
             onClose={() => setSelected(null)}
             wide={panelWide}
             onToggleWide={togglePanelWide}
+            onSendYohaku={() => setYohakuTarget('day')}
           />
         )}
       </div>
 
       {DEBUG && <DebugOverlay />}
 
-      {yohakuOpen && monthInk && (
+      {yohakuTarget === 'month' && monthInk && (
         <YohakuDialog
-          monthLabel={`${year}年${month0 + 1}月`}
+          defaultTitle={`${year}年${month0 + 1}月 フリースペース`}
           gridStrokes={monthInk.strokes}
           freeStrokes={freeOf(monthInk).strokes}
           freeHeight={freeOf(monthInk).height}
           layers={inkSettings.layers}
           defaultLayerId={DEFAULT_LAYER_ID}
-          onClose={() => setYohakuOpen(false)}
+          onClose={() => setYohakuTarget(null)}
+        />
+      )}
+      {yohakuTarget === 'day' && entry && selected && (
+        <YohakuDialog
+          defaultTitle={`${selected.getFullYear()}年${selected.getMonth() + 1}月${selected.getDate()}日`}
+          freeStrokes={entry.strokes}
+          freeHeight={entry.canvasHeight || 700}
+          text={entry.text}
+          layers={inkSettings.layers}
+          defaultLayerId={DEFAULT_LAYER_ID}
+          onClose={() => setYohakuTarget(null)}
         />
       )}
 
