@@ -35,6 +35,19 @@ export default function Handwriting({ strokes, height, onChange, onHeightChange 
   const drawing = useRef<{ pointerId: number; pen: boolean; points: number[][] } | null>(null);
   const strokesRef = useRef(strokes);
   strokesRef.current = strokes;
+  const scrollAfterGrow = useRef(false);
+
+  const grow = (scroll: boolean) => {
+    scrollAfterGrow.current = scroll;
+    onHeightChange(height + 300);
+  };
+
+  // 用紙を伸ばしたら、伸びた部分が見えるようにスクロールする
+  useEffect(() => {
+    if (!scrollAfterGrow.current) return;
+    scrollAfterGrow.current = false;
+    wrapRef.current?.scrollIntoView({ block: 'end', behavior: 'smooth' });
+  }, [height]);
 
   const scale = width > 0 ? width / LOGICAL_WIDTH : 1;
   const dpr = typeof window !== 'undefined' ? window.devicePixelRatio || 1 : 1;
@@ -150,6 +163,9 @@ export default function Handwriting({ strokes, height, onChange, onHeightChange 
     drawing.current = null;
     if (ink.tool === 'pen' && d.points.length > 0) {
       onChange([...strokesRef.current, { points: d.points, color: ink.color, size: ink.size, pen: d.pen }]);
+      // 下端近くまで書いたら自動で用紙を伸ばす
+      const maxY = Math.max(...d.points.map((p) => p[1]));
+      if (maxY > height - 80) grow(false);
     } else {
       paint();
     }
@@ -168,7 +184,7 @@ export default function Handwriting({ strokes, height, onChange, onHeightChange 
         onUndo={() => onChange(strokes.slice(0, -1))}
         onClear={() => onChange([])}
         extra={
-          <button type="button" className="btn-small" onClick={() => onHeightChange(height + 300)}>
+          <button type="button" className="btn-small" onClick={() => grow(true)} title="下に 1 段分伸ばします。下端近くまで書くと自動でも伸びます">
             用紙を伸ばす
           </button>
         }
