@@ -3,7 +3,11 @@ import { useEffect, useMemo, useState, type FormEvent } from 'react';
 import type { Stroke } from '../lib/diary.ts';
 import type { InkLayer } from '../lib/layers.ts';
 import {
+  TARGET_NOTEBOOK,
+  TARGET_SECTION,
   describeAuthError,
+  ensureTargetSection,
+  findTargetSection,
   readMeta,
   signInYohaku,
   signOutYohaku,
@@ -29,14 +33,14 @@ interface Props {
   onClose(): void;
 }
 
-const SECTION_KEY = 'yohaku_last_section';
 
 export default function YohakuDialog(p: Props) {
   const [user, setUser] = useState<YohakuUser | null | undefined>(undefined);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [meta, setMeta] = useState<YohakuMeta | null>(null);
-  const [sectionId, setSectionId] = useState(() => localStorage.getItem(SECTION_KEY) ?? '');
+  const [sectionId, setSectionId] = useState('');
+  const [targetMissing, setTargetMissing] = useState(false);
   const [includeGrid, setIncludeGrid] = useState(false);
   const [includeText, setIncludeText] = useState(true);
   const [title, setTitle] = useState(p.defaultTitle);
@@ -63,12 +67,40 @@ export default function YohakuDialog(p: Props) {
     }
     let alive = true;
     readMeta(user.uid)
-      .then((m) => alive && setMeta(m))
+      .then((m) => {
+        if (!alive) return;
+        setMeta(m);
+        // 既定の送り先(データ受け取り › 日記カレンダー)を選ぶ。無ければ作成ボタンを出す
+        const target = findTargetSection(m);
+        if (target) {
+          setSectionId(target.id);
+          setTargetMissing(false);
+        } else {
+          setTargetMissing(true);
+        }
+      })
       .catch((e) => alive && setMessage({ kind: 'error', text: describeAuthError(e) }));
     return () => {
       alive = false;
     };
   }, [user]);
+
+  const createTarget = async () => {
+    if (!user) return;
+    setBusy(true);
+    setMessage(null);
+    try {
+      const r = await ensureTargetSection(user.uid);
+      setMeta(r.meta);
+      setSectionId(r.sectionId);
+      setTargetMissing(false);
+      setMessage({ kind: 'ok', text: `余白ノートに「${TARGET_NOTEBOOK} › ${TARGET_SECTION}」を作りました。` });
+    } catch (err) {
+      setMessage({ kind: 'error', text: describeAuthError(err) });
+    } finally {
+      setBusy(false);
+    }
+  };
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -119,7 +151,6 @@ export default function YohakuDialog(p: Props) {
         now: Date.now(),
       });
       await writePage(user.uid, page);
-      if (sectionId) localStorage.setItem(SECTION_KEY, sectionId);
       setMessage({ kind: 'ok', text: `余白ノートに「${page.title}」を送りました。余白ノートを開くと同期で届きます。` });
     } catch (err) {
       setMessage({ kind: 'error', text: describeAuthError(err) });
@@ -181,7 +212,14 @@ export default function YohakuDialog(p: Props) {
                 ))}
               </select>
             </label>
-            {meta && sections.length === 0 && <p className="muted small">セクションの一覧が取得できませんでした。余白ノート側で一度同期すると選べるようになります。</p>}
+            {meta && targetMissing && (
+              <p className="muted small">
+                既定の送り先「{TARGET_NOTEBOOK} › {TARGET_SECTION}」が余白ノートにまだありません。{' '}
+                <button type="button" className="link-btn" disabled={busy} onClick={createTarget}>
+                  作成して送り先にする
+                </button>
+              </p>
+            )}
             {p.gridStrokes && (
               <label className="row check">
                 <input type="checkbox" checked={includeGrid} onChange={(e) => setIncludeGrid(e.target.checked)} />

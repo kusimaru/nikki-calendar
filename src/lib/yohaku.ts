@@ -33,6 +33,20 @@ export interface YohakuNotebook {
 export interface YohakuMeta {
   notebooks: YohakuNotebook[];
   sections: YohakuSection[];
+  /** ページの並び順(ID)。書き戻すときにそのまま保つ */
+  order: string[];
+  updatedAt: number;
+}
+
+/** 既定の送り先: ノートブック「データ受け取り」› セクション「日記カレンダー」 */
+export const TARGET_NOTEBOOK = 'データ受け取り';
+export const TARGET_SECTION = '日記カレンダー';
+
+/** meta から既定の送り先セクションを探す */
+export function findTargetSection(meta: YohakuMeta): YohakuSection | undefined {
+  const nb = meta.notebooks.find((n) => n.name === TARGET_NOTEBOOK);
+  if (!nb) return undefined;
+  return meta.sections.find((s) => s.notebookId === nb.id && s.name === TARGET_SECTION);
 }
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
@@ -99,12 +113,37 @@ export async function signOutYohaku(): Promise<void> {
 export async function readMeta(uid: string): Promise<YohakuMeta> {
   const { F, db } = await loadTransport();
   const snap = await F.getDoc(F.doc(db, 'users', uid, 'meta', 'notebook'));
-  if (!snap.exists()) return { notebooks: [], sections: [] };
+  if (!snap.exists()) return { notebooks: [], sections: [], order: [], updatedAt: 0 };
   const d = snap.data();
   return {
     notebooks: Array.isArray(d.notebooks) ? d.notebooks : [],
     sections: Array.isArray(d.sections) ? d.sections : [],
+    order: Array.isArray(d.order) ? d.order : [],
+    updatedAt: typeof d.updatedAt === 'number' ? d.updatedAt : 0,
   };
+}
+
+/**
+ * 既定の送り先(データ受け取り › 日記カレンダー)が無ければ作る。
+ * 余白ノートの meta/notebook を、既存の内容を保ったまま追記して書き戻す。
+ */
+export async function ensureTargetSection(uid: string): Promise<{ meta: YohakuMeta; sectionId: string }> {
+  const { F, db } = await loadTransport();
+  const meta = await readMeta(uid);
+  const existing = findTargetSection(meta);
+  if (existing) return { meta, sectionId: existing.id };
+  const notebooks = [...meta.notebooks];
+  const sections = [...meta.sections];
+  let nb = notebooks.find((n) => n.name === TARGET_NOTEBOOK);
+  if (!nb) {
+    nb = { id: crypto.randomUUID(), name: TARGET_NOTEBOOK, color: '#7aa6c2' };
+    notebooks.push(nb);
+  }
+  const sec: YohakuSection = { id: crypto.randomUUID(), notebookId: nb.id, name: TARGET_SECTION, color: '#1a73e8' };
+  sections.push(sec);
+  const next: YohakuMeta = { notebooks, sections, order: meta.order, updatedAt: Date.now() };
+  await F.setDoc(F.doc(db, 'users', uid, 'meta', 'notebook'), next);
+  return { meta: next, sectionId: sec.id };
 }
 
 /** ページを余白ノートの形式(メタ + base64 分割本文)で書き込む */
