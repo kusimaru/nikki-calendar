@@ -6,6 +6,7 @@ import type { CalEvent } from '../lib/google/calendar.ts';
 import type { DiaryEntry, DiaryImage, SaveState, Stroke } from '../lib/diary.ts';
 import { fileBlobUrl } from '../lib/google/drive.ts';
 import Handwriting from './Handwriting.tsx';
+import { installSwipe } from '../lib/swipe.ts';
 
 interface Props {
   date: Date;
@@ -81,55 +82,29 @@ export default function DayPanel(p: Props) {
   useEffect(() => {
     const el = panelRef.current;
     if (!el) return;
-    let start: { id: number; x: number; y: number } | null = null;
-    let decided: 'swipe' | 'no' | null = null;
-    const isExcluded = (t: EventTarget | null) =>
-      t instanceof Element && Boolean(t.closest('.hw-canvas, textarea, input, select, .thumbs, .modal'));
-    const onDown = (e: PointerEvent) => {
-      if (e.pointerType === 'mouse' || isExcluded(e.target)) return;
-      start = { id: e.pointerId, x: e.clientX, y: e.clientY };
-      decided = null;
-    };
-    const onMove = (e: PointerEvent) => {
-      if (!start || e.pointerId !== start.id) return;
-      const dx = e.clientX - start.x;
-      const dy = e.clientY - start.y;
-      if (decided === null && (Math.abs(dx) > 12 || Math.abs(dy) > 12)) {
-        decided = Math.abs(dx) > Math.abs(dy) * 1.5 ? 'swipe' : 'no';
-      }
-      if (decided !== 'swipe') return;
-      e.preventDefault();
-      el.style.transition = 'none';
-      el.style.transform = `translateX(${Math.max(-60, Math.min(60, dx * 0.3))}px)`;
-    };
-    const finish = (e: PointerEvent) => {
-      if (!start || e.pointerId !== start.id) return;
-      const dx = e.clientX - start.x;
-      const wasSwipe = decided === 'swipe';
-      start = null;
-      decided = null;
-      el.style.transition = '';
-      el.style.transform = '';
-      if (!wasSwipe || e.type === 'pointercancel') return;
-      const narrow = window.matchMedia('(max-width: 820px)').matches; // 狭い画面は常に全画面
-      const cur = propsRef.current;
-      if (dx <= -60) {
-        if (!narrow && !cur.wide) cur.onToggleWide();
-      } else if (dx >= 60) {
-        if (!narrow && cur.wide) cur.onToggleWide();
-        else cur.onClose();
-      }
-    };
-    el.addEventListener('pointerdown', onDown);
-    el.addEventListener('pointermove', onMove, { passive: false });
-    el.addEventListener('pointerup', finish);
-    el.addEventListener('pointercancel', finish);
-    return () => {
-      el.removeEventListener('pointerdown', onDown);
-      el.removeEventListener('pointermove', onMove);
-      el.removeEventListener('pointerup', finish);
-      el.removeEventListener('pointercancel', finish);
-    };
+    return installSwipe(el, {
+      threshold: 60,
+      isExcluded: (t) => t instanceof Element && Boolean(t.closest('.hw-canvas, textarea, input, select, .thumbs, .modal')),
+      follow: (dx) => {
+        el.style.transition = 'none';
+        el.style.transform = `translateX(${Math.max(-60, Math.min(60, dx * 0.3))}px)`;
+      },
+      reset: () => {
+        el.style.transition = '';
+        el.style.transform = '';
+      },
+      onSwipe: (dir) => {
+        const narrow = window.matchMedia('(max-width: 820px)').matches; // 狭い画面は常に全画面
+        const cur = propsRef.current;
+        if (dir === 'left') {
+          if (!narrow && !cur.wide) cur.onToggleWide();
+        } else if (!narrow && cur.wide) {
+          cur.onToggleWide();
+        } else {
+          cur.onClose();
+        }
+      },
+    });
   }, []);
 
   const pickImages = (files: FileList | File[] | null) => {

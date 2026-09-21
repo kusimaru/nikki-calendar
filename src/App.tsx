@@ -7,6 +7,7 @@ import LayerBar from './components/LayerBar.tsx';
 import MonthStrip from './components/MonthStrip.tsx';
 import FreeSpace from './components/FreeSpace.tsx';
 import YohakuDialog from './components/YohakuDialog.tsx';
+import { installSwipe } from './lib/swipe.ts';
 import { layerOf } from './components/MonthInk.tsx';
 import {
   DEFAULT_LAYER_ID,
@@ -509,60 +510,29 @@ export default function App() {
   useEffect(() => {
     const el = mainRef.current;
     if (!el) return;
-    let start: { id: number; x: number; y: number } | null = null;
-    let decided: 'swipe' | 'no' | null = null;
     const monthEl = () => el.querySelector<HTMLElement>('.month');
-
-    const onDown = (e: PointerEvent) => {
-      if (inkModeRef.current || e.pointerType === 'mouse') return;
-      start = { id: e.pointerId, x: e.clientX, y: e.clientY };
-      decided = null;
-    };
-    const onMove = (e: PointerEvent) => {
-      if (!start || e.pointerId !== start.id) return;
-      const dx = e.clientX - start.x;
-      const dy = e.clientY - start.y;
-      if (decided === null && (Math.abs(dx) > 12 || Math.abs(dy) > 12)) {
-        decided = Math.abs(dx) > Math.abs(dy) * 1.3 ? 'swipe' : 'no';
-      }
-      if (decided !== 'swipe') return;
-      e.preventDefault();
-      const m = monthEl();
-      if (m) {
-        m.style.transition = 'none';
-        m.style.transform = `translateX(${Math.max(-80, Math.min(80, dx * 0.35))}px)`;
-      }
-    };
-    const finish = (e: PointerEvent) => {
-      if (!start || e.pointerId !== start.id) return;
-      const dx = e.clientX - start.x;
-      const wasSwipe = decided === 'swipe';
-      start = null;
-      decided = null;
-      const m = monthEl();
-      if (m) {
-        m.style.transition = '';
-        m.style.transform = '';
-      }
-      if (!wasSwipe || e.type === 'pointercancel') return;
-      if (dx <= -50) {
-        setSlide('left');
-        setMonth((cur) => addMonths(cur, 1));
-      } else if (dx >= 50) {
-        setSlide('right');
-        setMonth((cur) => addMonths(cur, -1));
-      }
-    };
-    el.addEventListener('pointerdown', onDown);
-    el.addEventListener('pointermove', onMove, { passive: false });
-    el.addEventListener('pointerup', finish);
-    el.addEventListener('pointercancel', finish);
-    return () => {
-      el.removeEventListener('pointerdown', onDown);
-      el.removeEventListener('pointermove', onMove);
-      el.removeEventListener('pointerup', finish);
-      el.removeEventListener('pointercancel', finish);
-    };
+    return installSwipe(el, {
+      isEnabled: () => !inkModeRef.current,
+      isExcluded: (t) => t instanceof Element && Boolean(t.closest('.month-strip, .free-space-paper')),
+      follow: (dx) => {
+        const m = monthEl();
+        if (m) {
+          m.style.transition = 'none';
+          m.style.transform = `translateX(${Math.max(-80, Math.min(80, dx * 0.35))}px)`;
+        }
+      },
+      reset: () => {
+        const m = monthEl();
+        if (m) {
+          m.style.transition = '';
+          m.style.transform = '';
+        }
+      },
+      onSwipe: (dir) => {
+        setSlide(dir);
+        setMonth((cur) => addMonths(cur, dir === 'left' ? 1 : -1));
+      },
+    });
   }, []);
 
   useEffect(() => {
