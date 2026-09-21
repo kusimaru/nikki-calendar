@@ -3,7 +3,7 @@ import MonthView from './components/MonthView.tsx';
 import DayPanel from './components/DayPanel.tsx';
 import EventEditor from './components/EventEditor.tsx';
 import InkToolbar from './components/InkToolbar.tsx';
-import { defaultInkState, type InkState } from './lib/ink.ts';
+import { defaultInkState, inkLog, type InkState } from './lib/ink.ts';
 import { emptyMonthInk, loadMonthInk, monthKey, saveMonthInk, type MonthInk } from './lib/monthInk.ts';
 import { addDays, addMonths, monthGrid, ymdKey } from './lib/date.ts';
 import { AuthError, hasClientId, isSignedIn, onAuthChange, signIn, signOut } from './lib/google/auth.ts';
@@ -40,6 +40,23 @@ const INK_SIZES: [string, number][] = [
 ];
 
 type EditorState = { mode: 'create'; date: Date } | { mode: 'edit'; event: CalEvent } | null;
+
+const DEBUG = new URLSearchParams(location.search).has('debug');
+
+/** ?debug=1 のとき、直近のペン・タッチイベントを画面に出す */
+function DebugOverlay() {
+  const [, tick] = useState(0);
+  useEffect(() => {
+    const id = window.setInterval(() => tick((n) => n + 1), 300);
+    return () => window.clearInterval(id);
+  }, []);
+  return (
+    <pre className="debug-overlay">
+      {`UA: ${navigator.userAgent}\nstandalone: ${String((navigator as { standalone?: boolean }).standalone)}\n`}
+      {inkLog.join('\n') || '(まだイベントなし)'}
+    </pre>
+  );
+}
 
 export default function App() {
   const [month, setMonth] = useState(() => new Date(new Date().getFullYear(), new Date().getMonth(), 1));
@@ -525,6 +542,8 @@ export default function App() {
           />
         )}
       </div>
+
+      {DEBUG && <DebugOverlay />}
 
       {editor && (
         <EventEditor

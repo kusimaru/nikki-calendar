@@ -31,6 +31,48 @@ export function pressureOf(e: { pressure: number; pointerType: string }): number
   return 0.5;
 }
 
+/** マウスは左ボタンのみ。ペン・指はボタン情報がブラウザごとに揺れるので常に受け付ける */
+export function isPrimaryButton(e: { pointerType: string; button: number }): boolean {
+  return e.pointerType === 'mouse' ? e.button === 0 : true;
+}
+
+/** 確定済みストロークの輪郭キャッシュ(ストロークオブジェクトと描画倍率ごと) */
+const pathCache = new WeakMap<object, { key: string; path: Path2D }>();
+export function cachedPath(stroke: { points: number[][]; size: number; pen: boolean }, sx: number, sy: number): Path2D {
+  const key = sx + ':' + sy;
+  const hit = pathCache.get(stroke);
+  if (hit && hit.key === key) return hit.path;
+  const pts = sx === 1 && sy === 1 ? stroke.points : stroke.points.map((p) => [p[0] * sx, p[1] * sy, p[2]]);
+  const path = outlinePath(pts, stroke.size * sx, stroke.pen);
+  pathCache.set(stroke, { key, path });
+  return path;
+}
+
+/** 診断用: 直近のポインタイベントを記録する(?debug=1 で画面に表示) */
+export const inkLog: string[] = [];
+export function logPointer(
+  where: string,
+  e: { type: string; pointerType: string; button: number; buttons: number; pressure: number; pointerId: number },
+) {
+  const t = new Date();
+  const hms = [t.getHours(), t.getMinutes(), t.getSeconds()].map((n) => String(n).padStart(2, '0')).join(':');
+  inkLog.push(`${hms} ${where} ${e.type} ${e.pointerType} id=${e.pointerId} b=${e.button}/${e.buttons} p=${e.pressure.toFixed(2)}`);
+  if (inkLog.length > 14) inkLog.shift();
+}
+
+/** iPad Safari 向け: 要素上のタッチ既定動作(スクロール・拡大)を確実に止める */
+export function blockTouchGestures(el: HTMLElement, isActive: () => boolean): () => void {
+  const h = (e: TouchEvent) => {
+    if (isActive() && e.cancelable) e.preventDefault();
+  };
+  el.addEventListener('touchstart', h, { passive: false });
+  el.addEventListener('touchmove', h, { passive: false });
+  return () => {
+    el.removeEventListener('touchstart', h);
+    el.removeEventListener('touchmove', h);
+  };
+}
+
 /** perfect-freehand で輪郭を作り Path2D にする(points は既に描画座標系) */
 export function outlinePath(points: number[][], size: number, pen: boolean): Path2D {
   const outline = getStroke(points, {

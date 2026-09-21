@@ -1,7 +1,7 @@
 // 手書きキャンバス(日別パネル用。Apple Pencil / 液タブ / マウス / 指 対応)
 import { useCallback, useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from 'react';
 import type { Stroke } from '../lib/diary.ts';
-import { defaultInkState, outlinePath, pressureOf, type InkState } from '../lib/ink.ts';
+import { blockTouchGestures, cachedPath, defaultInkState, isPrimaryButton, logPointer, outlinePath, pressureOf, type InkState } from '../lib/ink.ts';
 import InkToolbar from './InkToolbar.tsx';
 
 export const LOGICAL_WIDTH = 1000;
@@ -21,7 +21,7 @@ interface Props {
 function paintStrokes(ctx: CanvasRenderingContext2D, strokes: Stroke[]) {
   for (const s of strokes) {
     ctx.fillStyle = s.color;
-    ctx.fill(outlinePath(s.points, s.size, s.pen));
+    ctx.fill(cachedPath(s, 1, 1));
   }
 }
 
@@ -71,9 +71,17 @@ export default function Handwriting({ strokes, height, onChange, onHeightChange 
     const d = drawing.current;
     if (d && ink.tool === 'pen' && d.points.length > 0) {
       ctx.setTransform(scale * dpr, 0, 0, scale * dpr, 0, 0);
-      paintStrokes(ctx, [{ points: d.points, color: ink.color, size: ink.size, pen: d.pen }]);
+      ctx.fillStyle = ink.color;
+      ctx.fill(outlinePath(d.points, ink.size, d.pen));
     }
   }, [ink, scale, dpr]);
+
+  // iPad Safari 向け: キャンバス上のタッチ既定動作を止める
+  useEffect(() => {
+    const c = canvasRef.current;
+    if (!c) return;
+    return blockTouchGestures(c, () => true);
+  }, []);
 
   useEffect(() => {
     const c = canvasRef.current;
@@ -102,8 +110,13 @@ export default function Handwriting({ strokes, height, onChange, onHeightChange 
   };
 
   const onPointerDown = (e: ReactPointerEvent<HTMLCanvasElement>) => {
-    if (!acceptsPointer(e) || e.button !== 0) return;
-    e.currentTarget.setPointerCapture(e.pointerId);
+    logPointer('day', e);
+    if (!acceptsPointer(e) || !isPrimaryButton(e)) return;
+    try {
+      e.currentTarget.setPointerCapture(e.pointerId);
+    } catch {
+      /* iOS では暗黙キャプチャ */
+    }
     const p = toLogical(e);
     if (ink.tool === 'eraser') {
       drawing.current = { pointerId: e.pointerId, pen: false, points: [] };
@@ -133,6 +146,7 @@ export default function Handwriting({ strokes, height, onChange, onHeightChange 
   const finish = (e: ReactPointerEvent<HTMLCanvasElement>) => {
     const d = drawing.current;
     if (!d || d.pointerId !== e.pointerId) return;
+    logPointer('day', e);
     drawing.current = null;
     if (ink.tool === 'pen' && d.points.length > 0) {
       onChange([...strokesRef.current, { points: d.points, color: ink.color, size: ink.size, pen: d.pen }]);

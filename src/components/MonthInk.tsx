@@ -1,7 +1,7 @@
 // 月表示のグリッドに重ねる手書きレイヤー
 import { useEffect, useRef, type RefObject } from 'react';
 import type { Stroke } from '../lib/diary.ts';
-import { outlinePath, pressureOf, type InkState } from '../lib/ink.ts';
+import { blockTouchGestures, cachedPath, isPrimaryButton, logPointer, outlinePath, pressureOf, type InkState } from '../lib/ink.ts';
 
 const LOGICAL = 1000;
 
@@ -18,9 +18,14 @@ interface Props {
 function paint(ctx: CanvasRenderingContext2D, strokes: Stroke[], sx: number, sy: number) {
   for (const s of strokes) {
     ctx.fillStyle = s.color;
-    const pts = s.points.map((p) => [p[0] * sx, p[1] * sy, p[2]]);
-    ctx.fill(outlinePath(pts, s.size * sx, s.pen));
+    ctx.fill(cachedPath(s, sx, sy));
   }
+}
+
+function paintLive(ctx: CanvasRenderingContext2D, points: number[][], color: string, size: number, pen: boolean, sx: number, sy: number) {
+  ctx.fillStyle = color;
+  const pts = points.map((p) => [p[0] * sx, p[1] * sy, p[2]]);
+  ctx.fill(outlinePath(pts, size * sx, pen));
 }
 
 export default function MonthInk({ containerRef, strokes, state, active, onChange }: Props) {
@@ -70,7 +75,7 @@ export default function MonthInk({ containerRef, strokes, state, active, onChang
     const st = stateRef.current;
     if (d && st.tool === 'pen' && d.points.length > 0) {
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-      paint(ctx, [{ points: d.points, color: st.color, size: st.size, pen: d.pen }], w / LOGICAL, h / LOGICAL);
+      paintLive(ctx, d.points, st.color, st.size, d.pen, w / LOGICAL, h / LOGICAL);
     }
   };
 
@@ -121,14 +126,19 @@ export default function MonthInk({ containerRef, strokes, state, active, onChang
 
     const onDown = (e: PointerEvent) => {
       if (!activeRef.current) return; // 手書きモード外では何もしない
+      logPointer('month', e);
       e.preventDefault();
       e.stopPropagation();
-      if (e.button !== 0) return;
+      if (!isPrimaryButton(e)) return;
       if (e.pointerType === 'pen') penSeen.current = true;
       const st = stateRef.current;
       // パームリジェクション: ペンを検出済み(または「ペンのみ」)なら指は無視
       if (e.pointerType === 'touch' && (st.penOnly || penSeen.current)) return;
-      el.setPointerCapture(e.pointerId);
+      try {
+        el.setPointerCapture(e.pointerId);
+      } catch {
+        /* iOS ではタッチ・ペンは暗黙にキャプチャされるため失敗しても続行 */
+      }
       const p = toLogical(e);
       if (st.tool === 'eraser') {
         drawing.current = { pointerId: e.pointerId, pen: false, points: [] };
@@ -159,6 +169,7 @@ export default function MonthInk({ containerRef, strokes, state, active, onChang
     const onUp = (e: PointerEvent) => {
       const d = drawing.current;
       if (!d || d.pointerId !== e.pointerId) return;
+      logPointer('month', e);
       e.stopPropagation();
       drawing.current = null;
       justDrew.current = true;
@@ -179,6 +190,7 @@ export default function MonthInk({ containerRef, strokes, state, active, onChang
       }
     };
 
+    const unblock = blockTouchGestures(el, () => activeRef.current);
     el.addEventListener('pointerdown', onDown, { capture: true });
     el.addEventListener('pointermove', onMove, { capture: true });
     el.addEventListener('pointerup', onUp, { capture: true });
@@ -186,6 +198,7 @@ export default function MonthInk({ containerRef, strokes, state, active, onChang
     el.addEventListener('click', swallowClick, { capture: true });
     el.addEventListener('dblclick', swallowClick, { capture: true });
     return () => {
+      unblock();
       el.removeEventListener('pointerdown', onDown, { capture: true });
       el.removeEventListener('pointermove', onMove, { capture: true });
       el.removeEventListener('pointerup', onUp, { capture: true });
