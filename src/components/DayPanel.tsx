@@ -71,8 +71,66 @@ function ImageThumb({ img, onRemove }: { img: DiaryImage; onRemove(): void }) {
 export default function DayPanel(p: Props) {
   const info = getDayInfo(p.date);
   const fileRef = useRef<HTMLInputElement>(null);
+  const panelRef = useRef<HTMLElement>(null);
   const [dragOver, setDragOver] = useState(false);
   const weekday = WEEKDAYS_JA[(p.date.getDay() + 6) % 7];
+  const propsRef = useRef(p);
+  propsRef.current = p;
+
+  // 横スワイプ: 左へ払う=全画面、右へ払う=元の幅に戻す(全画面時)/閉じる(通常時)。指・ペンのみ
+  useEffect(() => {
+    const el = panelRef.current;
+    if (!el) return;
+    let start: { id: number; x: number; y: number } | null = null;
+    let decided: 'swipe' | 'no' | null = null;
+    const isExcluded = (t: EventTarget | null) =>
+      t instanceof Element && Boolean(t.closest('.hw-canvas, textarea, input, select, .thumbs, .modal'));
+    const onDown = (e: PointerEvent) => {
+      if (e.pointerType === 'mouse' || isExcluded(e.target)) return;
+      start = { id: e.pointerId, x: e.clientX, y: e.clientY };
+      decided = null;
+    };
+    const onMove = (e: PointerEvent) => {
+      if (!start || e.pointerId !== start.id) return;
+      const dx = e.clientX - start.x;
+      const dy = e.clientY - start.y;
+      if (decided === null && (Math.abs(dx) > 12 || Math.abs(dy) > 12)) {
+        decided = Math.abs(dx) > Math.abs(dy) * 1.5 ? 'swipe' : 'no';
+      }
+      if (decided !== 'swipe') return;
+      e.preventDefault();
+      el.style.transition = 'none';
+      el.style.transform = `translateX(${Math.max(-60, Math.min(60, dx * 0.3))}px)`;
+    };
+    const finish = (e: PointerEvent) => {
+      if (!start || e.pointerId !== start.id) return;
+      const dx = e.clientX - start.x;
+      const wasSwipe = decided === 'swipe';
+      start = null;
+      decided = null;
+      el.style.transition = '';
+      el.style.transform = '';
+      if (!wasSwipe || e.type === 'pointercancel') return;
+      const narrow = window.matchMedia('(max-width: 820px)').matches; // 狭い画面は常に全画面
+      const cur = propsRef.current;
+      if (dx <= -60) {
+        if (!narrow && !cur.wide) cur.onToggleWide();
+      } else if (dx >= 60) {
+        if (!narrow && cur.wide) cur.onToggleWide();
+        else cur.onClose();
+      }
+    };
+    el.addEventListener('pointerdown', onDown);
+    el.addEventListener('pointermove', onMove, { passive: false });
+    el.addEventListener('pointerup', finish);
+    el.addEventListener('pointercancel', finish);
+    return () => {
+      el.removeEventListener('pointerdown', onDown);
+      el.removeEventListener('pointermove', onMove);
+      el.removeEventListener('pointerup', finish);
+      el.removeEventListener('pointercancel', finish);
+    };
+  }, []);
 
   const pickImages = (files: FileList | File[] | null) => {
     if (!files) return;
@@ -99,6 +157,7 @@ export default function DayPanel(p: Props) {
 
   return (
     <aside
+      ref={panelRef}
       className={'day-panel' + (dragOver ? ' drag' : '') + (p.wide ? ' wide' : '')}
       onPaste={onPaste}
       onDragOver={(e) => {
@@ -130,7 +189,7 @@ export default function DayPanel(p: Props) {
           <button
             type="button"
             className="btn-small wide-toggle"
-            title={p.wide ? '元の幅に戻す(f キー)' : '全画面にする(f キー)'}
+            title={p.wide ? '元の幅に戻す(f キー / 右へスワイプ)' : '全画面にする(f キー / 左へスワイプ)'}
             onClick={p.onToggleWide}
           >
             {p.wide ? '⤡ 戻す' : '⤢ 全画面'}
