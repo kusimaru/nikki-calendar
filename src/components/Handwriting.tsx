@@ -1,7 +1,7 @@
 // 手書きキャンバス(日別パネル用。Apple Pencil / 液タブ / マウス / 指 対応)
 import { useCallback, useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from 'react';
 import type { Stroke } from '../lib/diary.ts';
-import { defaultInkState, outlinePath, type InkState } from '../lib/ink.ts';
+import { defaultInkState, outlinePath, pressureOf, type InkState } from '../lib/ink.ts';
 import InkToolbar from './InkToolbar.tsx';
 
 export const LOGICAL_WIDTH = 1000;
@@ -84,9 +84,9 @@ export default function Handwriting({ strokes, height, onChange, onHeightChange 
     paint();
   }, [width, height, scale, dpr, renderCommitted, paint]);
 
-  const toLogical = (e: { clientX: number; clientY: number; pressure: number }) => {
+  const toLogical = (e: { clientX: number; clientY: number; pressure: number; pointerType: string }) => {
     const rect = canvasRef.current!.getBoundingClientRect();
-    return [(e.clientX - rect.left) / scale, (e.clientY - rect.top) / scale, e.pressure];
+    return [(e.clientX - rect.left) / scale, (e.clientY - rect.top) / scale, pressureOf(e)];
   };
 
   const acceptsPointer = (e: ReactPointerEvent) => {
@@ -141,7 +141,8 @@ export default function Handwriting({ strokes, height, onChange, onHeightChange 
     }
   };
 
-  const touchAction = ink.penOnly || penSeen.current ? 'pan-y' : 'none';
+  // iPad Safari はペンでもスクロール判定を行うため、キャンバス上では常にブラウザのジェスチャーを止める
+  const touchAction = 'none';
 
   return (
     <div className="hw">

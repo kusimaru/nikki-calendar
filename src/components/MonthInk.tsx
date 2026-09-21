@@ -1,7 +1,7 @@
 // 月表示のグリッドに重ねる手書きレイヤー
 import { useEffect, useRef, type RefObject } from 'react';
 import type { Stroke } from '../lib/diary.ts';
-import { outlinePath, type InkState } from '../lib/ink.ts';
+import { outlinePath, pressureOf, type InkState } from '../lib/ink.ts';
 
 const LOGICAL = 1000;
 
@@ -106,7 +106,7 @@ export default function MonthInk({ containerRef, strokes, state, active, onChang
 
     const toLogical = (e: PointerEvent) => {
       const r = el.getBoundingClientRect();
-      return [((e.clientX - r.left) / r.width) * LOGICAL, ((e.clientY - r.top) / r.height) * LOGICAL, e.pressure];
+      return [((e.clientX - r.left) / r.width) * LOGICAL, ((e.clientY - r.top) / r.height) * LOGICAL, pressureOf(e)];
     };
 
     const eraseAt = (x: number, y: number) => {

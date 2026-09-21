@@ -22,11 +22,20 @@ export function defaultInkState(size: number): InkState {
   };
 }
 
+/**
+ * 入力の筆圧を描画用に正規化する。
+ * ペンは筆圧 0 でも線が消えないよう 0.3〜1.0 に圧縮し、マウス・指は一定(0.5)にする。
+ */
+export function pressureOf(e: { pressure: number; pointerType: string }): number {
+  if (e.pointerType === 'pen') return 0.3 + 0.7 * Math.min(1, Math.max(0, e.pressure));
+  return 0.5;
+}
+
 /** perfect-freehand で輪郭を作り Path2D にする(points は既に描画座標系) */
 export function outlinePath(points: number[][], size: number, pen: boolean): Path2D {
   const outline = getStroke(points, {
     size,
-    thinning: 0.6,
+    thinning: 0.4,
     smoothing: 0.5,
     streamline: 0.4,
     simulatePressure: !pen,

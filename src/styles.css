@@ -257,6 +257,16 @@ button {
   cursor: crosshair;
   touch-action: none;
 }
+/* 手書き中はページ全体でスクロール・拡大・長押し選択を止める(iPad Safari で線が途切れる対策) */
+.app.inking {
+  touch-action: none;
+}
+.month-body.inking,
+.month-body.inking * {
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  user-select: none;
+}
 .month-body.inking .cell,
 .month-body.inking .chip {
   cursor: crosshair;

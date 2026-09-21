@@ -34,9 +34,9 @@ import {
 
 const SELECTED_CALS_KEY = 'selected_calendars';
 const INK_SIZES: [string, number][] = [
-  ['細', 1.5],
-  ['中', 3],
-  ['太', 6],
+  ['細', 2.5],
+  ['中', 4],
+  ['太', 7],
 ];
 
 type EditorState = { mode: 'create'; date: Date } | { mode: 'edit'; event: CalEvent } | null;
@@ -377,7 +377,7 @@ export default function App() {
   const selectedKey = selected ? ymdKey(selected) : null;
 
   return (
-    <div className={'app' + (selected ? ' has-panel' : '')}>
+    <div className={'app' + (selected ? ' has-panel' : '') + (inkMode ? ' inking' : '')}>
       <header className="topbar">
         <button type="button" className="icon-btn" aria-label="メニュー" onClick={() => setSidebarOpen((v) => !v)}>
           ☰
