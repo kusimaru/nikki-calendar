@@ -5,6 +5,7 @@ import EventEditor from './components/EventEditor.tsx';
 import InkToolbar from './components/InkToolbar.tsx';
 import LayerBar from './components/LayerBar.tsx';
 import MonthStrip from './components/MonthStrip.tsx';
+import FreeSpace from './components/FreeSpace.tsx';
 import { layerOf } from './components/MonthInk.tsx';
 import {
   DEFAULT_LAYER_ID,
@@ -21,7 +22,7 @@ import {
   type InkSettings,
 } from './lib/layers.ts';
 import { defaultInkState, inkLog, type InkState } from './lib/ink.ts';
-import { emptyMonthInk, loadMonthInk, monthKey, saveMonthInk, type MonthInk } from './lib/monthInk.ts';
+import { emptyMonthInk, freeOf, loadMonthInk, monthKey, saveMonthInk, type MonthInk } from './lib/monthInk.ts';
 import { addDays, addMonths, monthGrid, ymdKey } from './lib/date.ts';
 import { AuthError, hasClientId, isSignedIn, onAuthChange, signIn, signOut } from './lib/google/auth.ts';
 import {
@@ -319,15 +320,47 @@ export default function App() {
     };
   }, [year, month0, signedIn, flushInk]);
 
-  const changeInk = (strokes: MonthInk['strokes']) => {
-    const cur = monthInkRef.current;
-    if (!cur) return;
-    const next = { ...cur, strokes, updatedAt: new Date().toISOString() };
+  const lastSurface = useRef<'grid' | 'free'>('grid');
+
+  const commitInk = (next: MonthInk) => {
     monthInkRef.current = next;
     setMonthInk(next);
     inkDirty.current = true;
     if (inkTimer.current) window.clearTimeout(inkTimer.current);
     inkTimer.current = window.setTimeout(flushInk, 1000);
+  };
+
+  const changeInk = (strokes: MonthInk['strokes']) => {
+    const cur = monthInkRef.current;
+    if (!cur) return;
+    lastSurface.current = 'grid';
+    commitInk({ ...cur, strokes, updatedAt: new Date().toISOString() });
+  };
+
+  const changeFree = (strokes: MonthInk['strokes']) => {
+    const cur = monthInkRef.current;
+    if (!cur) return;
+    lastSurface.current = 'free';
+    commitInk({ ...cur, free: { ...freeOf(cur), strokes }, updatedAt: new Date().toISOString() });
+  };
+
+  const growFree = () => {
+    const cur = monthInkRef.current;
+    if (!cur) return;
+    const f = freeOf(cur);
+    commitInk({ ...cur, free: { ...f, height: f.height + 400 }, updatedAt: new Date().toISOString() });
+  };
+
+  /** 両面(グリッドとフリースペース)にまたがる編集 */
+  const editBoth = (fn: (strokes: MonthInk['strokes']) => MonthInk['strokes']) => {
+    const cur = monthInkRef.current;
+    if (!cur) return;
+    commitInk({
+      ...cur,
+      strokes: fn(cur.strokes),
+      free: { ...freeOf(cur), strokes: fn(freeOf(cur).strokes) },
+      updatedAt: new Date().toISOString(),
+    });
   };
 
   // ---- 日記の読み込み・保存 ----
@@ -588,7 +621,16 @@ export default function App() {
         <button
           type="button"
           className={'btn' + (inkMode ? ' active' : '')}
-          onClick={() => setInkMode((v) => !v)}
+          onClick={() => {
+            setInkMode((v) => {
+              if (!v) {
+                // 手書き開始時は選択中レイヤーの既定色にする
+                const layer = inkSettings.layers.find((l) => l.id === activeLayer);
+                if (layer) setInkState((s) => ({ ...s, color: layer.color, tool: 'pen' }));
+              }
+              return !v;
+            });
+          }}
           title="月表示の上に手書きする(押している間は日付を開きません)"
         >
           {inkMode ? '✎ 手書き中' : '✎ 手書き'}
@@ -609,20 +651,25 @@ export default function App() {
           <InkToolbar
             state={inkState}
             sizes={INK_SIZES}
-            canUndo={monthInk.strokes.some((s) => layerOf(s) === activeLayer)}
+            canUndo={[...monthInk.strokes, ...freeOf(monthInk).strokes].some((s) => layerOf(s) === activeLayer)}
             onChange={setInkState}
             onUndo={() => {
-              // 選択中レイヤーの最後の線だけ取り消す
+              // 最後に描いた面の、選択中レイヤーの最後の線だけ取り消す
+              const useFree = lastSurface.current === 'free';
+              const list = useFree ? freeOf(monthInk).strokes : monthInk.strokes;
               let idx = -1;
-              for (let i = monthInk.strokes.length - 1; i >= 0; i--) {
-                if (layerOf(monthInk.strokes[i]) === activeLayer) {
+              for (let i = list.length - 1; i >= 0; i--) {
+                if (layerOf(list[i]) === activeLayer) {
                   idx = i;
                   break;
                 }
               }
-              if (idx >= 0) changeInk(monthInk.strokes.filter((_, i) => i !== idx));
+              if (idx < 0) return;
+              const next = list.filter((_, i) => i !== idx);
+              if (useFree) changeFree(next);
+              else changeInk(next);
             }}
-            onClear={() => changeInk(monthInk.strokes.filter((s) => layerOf(s) !== activeLayer))}
+            onClear={() => editBoth((list) => list.filter((s) => layerOf(s) !== activeLayer))}
           />
           <span className="spacer" />
           <span className="save-state">
@@ -636,7 +683,10 @@ export default function App() {
             activeId={activeLayer}
             hidden={hiddenLayers}
             dimOthers={dimOthers}
-            strokeCounts={monthInk.strokes.reduce((m, s) => m.set(layerOf(s), (m.get(layerOf(s)) ?? 0) + 1), new Map<string, number>())}
+            strokeCounts={[...monthInk.strokes, ...freeOf(monthInk).strokes].reduce(
+              (m, s) => m.set(layerOf(s), (m.get(layerOf(s)) ?? 0) + 1),
+              new Map<string, number>(),
+            )}
             onSelect={selectLayer}
             onToggleVisible={toggleLayerVisible}
             onShowAll={() => {
@@ -658,7 +708,7 @@ export default function App() {
             }}
             onRemove={(id) => {
               updateLayers((ls) => ls.filter((l) => l.id !== id));
-              changeInk(monthInk.strokes.filter((s) => layerOf(s) !== id));
+              editBoth((list) => list.filter((s) => layerOf(s) !== id));
             }}
             onDimChange={(v) => {
               setDimOthers(v);
@@ -766,6 +816,19 @@ export default function App() {
                 : undefined
             }
           />
+          {monthInk && (
+            <FreeSpace
+              strokes={freeOf(monthInk).strokes}
+              height={freeOf(monthInk).height}
+              state={inkState}
+              active={inkMode}
+              activeLayer={activeLayer}
+              hiddenLayers={hiddenLayers}
+              dimOthers={dimOthers}
+              onChange={changeFree}
+              onGrow={growFree}
+            />
+          )}
           </div>
         </main>
 

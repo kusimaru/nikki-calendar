@@ -9,7 +9,19 @@ export interface MonthInk {
   month: string;
   /** 座標はグリッド全体に対する比率 × 1000(x, y とも) */
   strokes: Stroke[];
+  /** 月表示の下のフリースペース(幅 1000 基準の論理座標。高さは伸ばせる) */
+  free?: { strokes: Stroke[]; height: number };
   updatedAt: string;
+}
+
+export const FREE_DEFAULT_HEIGHT = 600;
+
+export function freeOf(ink: MonthInk): { strokes: Stroke[]; height: number } {
+  return ink.free ?? { strokes: [], height: FREE_DEFAULT_HEIGHT };
+}
+
+function isEmptyInk(ink: MonthInk): boolean {
+  return ink.strokes.length === 0 && freeOf(ink).strokes.length === 0;
 }
 
 const LS_PREFIX = 'monthink:';
@@ -34,7 +46,7 @@ function readLocal(month: string): MonthInk | null {
 
 function writeLocal(ink: MonthInk) {
   try {
-    if (ink.strokes.length === 0) localStorage.removeItem(LS_PREFIX + ink.month);
+    if (isEmptyInk(ink)) localStorage.removeItem(LS_PREFIX + ink.month);
     else localStorage.setItem(LS_PREFIX + ink.month, JSON.stringify(ink));
   } catch {
     /* ignore */
@@ -67,7 +79,7 @@ export async function saveMonthInk(ink: MonthInk): Promise<SaveState> {
     const file = await findFileByName(`${ink.month}.json`, f.months);
     if (file) id = file.id;
   }
-  if (ink.strokes.length === 0) {
+  if (isEmptyInk(ink)) {
     if (id) {
       await deleteFile(id);
       fileIds.delete(ink.month);

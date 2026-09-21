@@ -315,8 +315,42 @@ button {
 .month-slide {
   flex: 1;
   min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+}
+.month-slide > .month {
+  height: 100%;
+  flex: none;
+}
+
+/* ---- フリースペース ---- */
+.free-space {
+  padding: 8px 12px 32px;
+  border-top: 2px solid var(--line);
+  background: var(--bg2);
+}
+.free-space-head {
   display: flex;
-  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 6px;
+}
+.free-space-head h3 {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 500;
+}
+.free-space-paper {
+  position: relative;
+  width: 100%;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: #fff repeating-linear-gradient(transparent 0, transparent 39px, #eef 39px, #eef 40px);
+}
+.free-space-paper.inking {
+  cursor: crosshair;
+  touch-action: pan-y;
 }
 .month-slide.slide-left {
   animation: slide-from-right 0.22s ease-out;
@@ -378,11 +412,11 @@ button {
 }
 .month-body.inking {
   cursor: crosshair;
-  touch-action: none;
+  touch-action: pan-y;
 }
-/* 手書き中はページ全体でスクロール・拡大・長押し選択を止める(iPad Safari で線が途切れる対策) */
+/* 手書き中: 拡大・長押し選択を止める。縦スクロールは指に許し、ペンの線は touchstart 側で守る */
 .app.inking {
-  touch-action: none;
+  touch-action: pan-y;
 }
 .month-body.inking,
 .month-body.inking * {

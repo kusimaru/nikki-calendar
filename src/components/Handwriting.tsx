@@ -31,6 +31,8 @@ export default function Handwriting({ strokes, height, onChange, onHeightChange 
   const committedRef = useRef<HTMLCanvasElement | null>(null);
   const [width, setWidth] = useState(0);
   const [ink, setInk] = useState<InkState>(() => defaultInkState(SIZES[1][1]));
+  const inkRef = useRef(ink);
+  inkRef.current = ink;
   const penSeen = useRef(false);
   const drawing = useRef<{ pointerId: number; pen: boolean; points: number[][] } | null>(null);
   const strokesRef = useRef(strokes);
@@ -93,7 +95,8 @@ export default function Handwriting({ strokes, height, onChange, onHeightChange 
   useEffect(() => {
     const c = canvasRef.current;
     if (!c) return;
-    return blockTouchGestures(c, () => true);
+    // ペンは常に、指は「指で描く」状態のときだけブラウザのスクロールを止める
+    return blockTouchGestures(c, (stylus) => stylus || !(inkRef.current.penOnly || penSeen.current));
   }, []);
 
   useEffect(() => {
@@ -171,8 +174,8 @@ export default function Handwriting({ strokes, height, onChange, onHeightChange 
     }
   };
 
-  // iPad Safari はペンでもスクロール判定を行うため、キャンバス上では常にブラウザのジェスチャーを止める
-  const touchAction = 'none';
+  // ペン使用時は指でスクロールできるようにする(ペンの線は touchstart 側で止める)
+  const touchAction = ink.penOnly || penSeen.current ? 'pan-y' : 'none';
 
   return (
     <div className="hw">

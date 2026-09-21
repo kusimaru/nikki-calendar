@@ -60,10 +60,16 @@ export function logPointer(
   if (inkLog.length > 14) inkLog.shift();
 }
 
-/** iPad Safari 向け: 要素上のタッチ既定動作(スクロール・拡大)を確実に止める */
-export function blockTouchGestures(el: HTMLElement, isActive: () => boolean): () => void {
+/**
+ * iPad Safari 向け: 要素上のタッチ既定動作(スクロール・拡大)を止める。
+ * shouldBlock(stylus) が true のときだけ止めるので、ペン使用時は指でスクロールできる。
+ */
+export function blockTouchGestures(el: HTMLElement, shouldBlock: (stylus: boolean) => boolean): () => void {
   const h = (e: TouchEvent) => {
-    if (isActive() && e.cancelable) e.preventDefault();
+    if (!e.cancelable) return;
+    const t = (e.touches[0] ?? e.changedTouches[0]) as (Touch & { touchType?: string }) | undefined;
+    const stylus = t?.touchType === 'stylus';
+    if (shouldBlock(stylus)) e.preventDefault();
   };
   el.addEventListener('touchstart', h, { passive: false });
   el.addEventListener('touchmove', h, { passive: false });

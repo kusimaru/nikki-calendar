@@ -4,7 +4,7 @@ import type { Stroke } from '../lib/diary.ts';
 import { blockTouchGestures, cachedPath, isPrimaryButton, logPointer, outlinePath, pressureOf, type InkState } from '../lib/ink.ts';
 import { DEFAULT_LAYER_ID } from '../lib/layers.ts';
 
-const LOGICAL = 1000;
+export const LOGICAL = 1000;
 
 interface Props {
   /** 描画対象のグリッド要素(この要素のポインタ入力を横取りする) */
@@ -19,6 +19,10 @@ interface Props {
   hiddenLayers: Set<string>;
   /** 手書き中、選択中以外のレイヤーを薄く表示する */
   dimOthers: boolean;
+  /** true なら縦横同じ倍率(幅 1000 基準)。高さを伸ばしても線が歪まない */
+  uniform?: boolean;
+  /** uniform 時、下端近くまで描いたら呼ぶ */
+  onNearBottom?(): void;
   onChange(strokes: Stroke[]): void;
 }
 
@@ -50,7 +54,18 @@ function paintLive(ctx: CanvasRenderingContext2D, points: number[][], color: str
   ctx.fill(outlinePath(pts, size * sx, pen));
 }
 
-export default function MonthInk({ containerRef, strokes, state, active, activeLayer, hiddenLayers, dimOthers, onChange }: Props) {
+export default function MonthInk({
+  containerRef,
+  strokes,
+  state,
+  active,
+  activeLayer,
+  hiddenLayers,
+  dimOthers,
+  uniform = false,
+  onNearBottom,
+  onChange,
+}: Props) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const offRef = useRef<HTMLCanvasElement | null>(null);
   const sizeRef = useRef({ w: 0, h: 0 });
@@ -66,6 +81,8 @@ export default function MonthInk({ containerRef, strokes, state, active, activeL
   const layerRef = useRef(activeLayer);
   const hiddenRef = useRef(hiddenLayers);
   const dimRef = useRef(dimOthers);
+  const nearBottomRef = useRef(onNearBottom);
+  nearBottomRef.current = onNearBottom;
   strokesRef.current = strokes;
   stateRef.current = state;
   activeRef.current = active;
@@ -75,6 +92,11 @@ export default function MonthInk({ containerRef, strokes, state, active, activeL
   dimRef.current = dimOthers;
 
   const dpr = window.devicePixelRatio || 1;
+  const scales = () => {
+    const { w, h } = sizeRef.current;
+    const sx = w / LOGICAL;
+    return { sx, sy: uniform ? sx : h / LOGICAL };
+  };
 
   const renderAll = () => {
     const c = canvasRef.current;
@@ -87,14 +109,14 @@ export default function MonthInk({ containerRef, strokes, state, active, activeL
     const octx = off.getContext('2d')!;
     octx.setTransform(dpr, 0, 0, dpr, 0, 0);
     const dimExcept = activeRef.current && dimRef.current ? layerRef.current : null;
-    paint(octx, strokesRef.current, w / LOGICAL, h / LOGICAL, hiddenRef.current, dimExcept);
+    const { sx, sy } = scales();
+    paint(octx, strokesRef.current, sx, sy, hiddenRef.current, dimExcept);
     renderLive();
   };
 
   const renderLive = () => {
     const c = canvasRef.current;
     const off = offRef.current;
-    const { w, h } = sizeRef.current;
     if (!c || !off) return;
     const ctx = c.getContext('2d')!;
     ctx.setTransform(1, 0, 0, 1, 0, 0);
@@ -104,7 +126,8 @@ export default function MonthInk({ containerRef, strokes, state, active, activeL
     const st = stateRef.current;
     if (d && st.tool === 'pen' && d.points.length > 0) {
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-      paintLive(ctx, d.points, st.color, st.size, d.pen, w / LOGICAL, h / LOGICAL);
+      const { sx, sy } = scales();
+      paintLive(ctx, d.points, st.color, st.size, d.pen, sx, sy);
     }
   };
 
@@ -140,13 +163,14 @@ export default function MonthInk({ containerRef, strokes, state, active, activeL
 
     const toLogical = (e: PointerEvent) => {
       const r = el.getBoundingClientRect();
-      return [((e.clientX - r.left) / r.width) * LOGICAL, ((e.clientY - r.top) / r.height) * LOGICAL, pressureOf(e)];
+      const { sx, sy } = scales();
+      return [(e.clientX - r.left) / sx, (e.clientY - r.top) / sy, pressureOf(e)];
     };
 
     const eraseAt = (x: number, y: number) => {
-      const { w, h } = sizeRef.current;
-      const rx = (14 / w) * LOGICAL;
-      const ry = (14 / h) * LOGICAL;
+      const { sx, sy } = scales();
+      const rx = 14 / sx;
+      const ry = 14 / sy;
       // 消しゴムは選択中のレイヤーの線だけに効く
       const remain = strokesRef.current.filter(
         (s) => layerOf(s) !== layerRef.current || !s.points.some((p) => Math.abs(p[0] - x) < rx && Math.abs(p[1] - y) < ry),
@@ -210,6 +234,12 @@ export default function MonthInk({ containerRef, strokes, state, active, activeL
           ...strokesRef.current,
           { points: d.points, color: st.color, size: st.size, pen: d.pen, layer: layerRef.current },
         ]);
+        if (uniform && nearBottomRef.current) {
+          const { sy } = scales();
+          const bottom = sizeRef.current.h / sy;
+          const maxY = Math.max(...d.points.map((p) => p[1]));
+          if (maxY > bottom - 80) nearBottomRef.current();
+        }
       } else {
         renderLive();
       }
@@ -223,7 +253,11 @@ export default function MonthInk({ containerRef, strokes, state, active, activeL
       }
     };
 
-    const unblock = blockTouchGestures(el, () => activeRef.current);
+    // 手書き中: ペンは常に、指は「指で描く」状態のときだけスクロールを止める(ペン使用時は指でスクロール可)
+    const unblock = blockTouchGestures(
+      el,
+      (stylus) => activeRef.current && (stylus || !(stateRef.current.penOnly || penSeen.current)),
+    );
     el.addEventListener('pointerdown', onDown, { capture: true });
     el.addEventListener('pointermove', onMove, { capture: true });
     el.addEventListener('pointerup', onUp, { capture: true });
@@ -240,7 +274,7 @@ export default function MonthInk({ containerRef, strokes, state, active, activeL
       el.removeEventListener('dblclick', swallowClick, { capture: true });
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [containerRef]);
+  }, [containerRef, uniform]);
 
   return <canvas ref={canvasRef} className="month-ink" aria-hidden="true" />;
 }
