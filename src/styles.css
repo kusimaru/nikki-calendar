@@ -220,6 +220,90 @@ button {
   min-width: 0;
   display: flex;
   flex-direction: column;
+  overflow: hidden;
+  /* 横スワイプは自前で処理し、縦はブラウザに任せる */
+  touch-action: pan-y;
+}
+
+/* ---- 月ボタンの帯 ---- */
+.month-strip {
+  flex: none;
+  display: flex;
+  gap: 6px;
+  overflow-x: auto;
+  padding: 6px 12px;
+  border-bottom: 1px solid var(--line);
+  scrollbar-width: none;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior-x: contain;
+  touch-action: pan-x;
+}
+.month-strip::-webkit-scrollbar {
+  display: none;
+}
+.strip-year-group {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+.strip-chip {
+  flex: none;
+  border: none;
+  border-radius: 16px;
+  padding: 5px 14px;
+  background: var(--bg2);
+  font-size: 14px;
+  white-space: nowrap;
+}
+.strip-chip:hover {
+  background: #e8eaed;
+}
+.strip-chip.active {
+  background: var(--blue);
+  color: #fff;
+}
+.strip-year {
+  flex: none;
+  border: none;
+  background: transparent;
+  padding: 5px 6px;
+  font-size: 14px;
+  color: var(--muted);
+  font-weight: 500;
+}
+
+/* ---- 月切替のスライド ---- */
+.month-slide {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+.month-slide.slide-left {
+  animation: slide-from-right 0.22s ease-out;
+}
+.month-slide.slide-right {
+  animation: slide-from-left 0.22s ease-out;
+}
+@keyframes slide-from-right {
+  from {
+    transform: translateX(40px);
+    opacity: 0.4;
+  }
+  to {
+    transform: none;
+    opacity: 1;
+  }
+}
+@keyframes slide-from-left {
+  from {
+    transform: translateX(-40px);
+    opacity: 0.4;
+  }
+  to {
+    transform: none;
+    opacity: 1;
+  }
 }
 
 /* ---- 月表示 ---- */

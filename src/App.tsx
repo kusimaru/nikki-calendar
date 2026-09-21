@@ -4,6 +4,7 @@ import DayPanel from './components/DayPanel.tsx';
 import EventEditor from './components/EventEditor.tsx';
 import InkToolbar from './components/InkToolbar.tsx';
 import LayerBar from './components/LayerBar.tsx';
+import MonthStrip from './components/MonthStrip.tsx';
 import { layerOf } from './components/MonthInk.tsx';
 import {
   DEFAULT_LAYER_ID,
@@ -111,6 +112,10 @@ export default function App() {
   const entryRef = useRef<DiaryEntry | null>(null);
   const saveTimer = useRef<number | null>(null);
   const dirtyRef = useRef(false);
+  const mainRef = useRef<HTMLElement>(null);
+  const inkModeRef = useRef(inkMode);
+  inkModeRef.current = inkMode;
+  const [slide, setSlide] = useState<'left' | 'right' | null>(null);
 
   const year = month.getFullYear();
   const month0 = month.getMonth();
@@ -425,6 +430,72 @@ export default function App() {
     }
   };
 
+  // ---- 横スワイプで月移動(指・ペン。手書きモード中は無効) ----
+  useEffect(() => {
+    const el = mainRef.current;
+    if (!el) return;
+    let start: { id: number; x: number; y: number } | null = null;
+    let decided: 'swipe' | 'no' | null = null;
+    const monthEl = () => el.querySelector<HTMLElement>('.month');
+
+    const onDown = (e: PointerEvent) => {
+      if (inkModeRef.current || e.pointerType === 'mouse') return;
+      start = { id: e.pointerId, x: e.clientX, y: e.clientY };
+      decided = null;
+    };
+    const onMove = (e: PointerEvent) => {
+      if (!start || e.pointerId !== start.id) return;
+      const dx = e.clientX - start.x;
+      const dy = e.clientY - start.y;
+      if (decided === null && (Math.abs(dx) > 12 || Math.abs(dy) > 12)) {
+        decided = Math.abs(dx) > Math.abs(dy) * 1.3 ? 'swipe' : 'no';
+      }
+      if (decided !== 'swipe') return;
+      e.preventDefault();
+      const m = monthEl();
+      if (m) {
+        m.style.transition = 'none';
+        m.style.transform = `translateX(${Math.max(-80, Math.min(80, dx * 0.35))}px)`;
+      }
+    };
+    const finish = (e: PointerEvent) => {
+      if (!start || e.pointerId !== start.id) return;
+      const dx = e.clientX - start.x;
+      const wasSwipe = decided === 'swipe';
+      start = null;
+      decided = null;
+      const m = monthEl();
+      if (m) {
+        m.style.transition = '';
+        m.style.transform = '';
+      }
+      if (!wasSwipe || e.type === 'pointercancel') return;
+      if (dx <= -50) {
+        setSlide('left');
+        setMonth((cur) => addMonths(cur, 1));
+      } else if (dx >= 50) {
+        setSlide('right');
+        setMonth((cur) => addMonths(cur, -1));
+      }
+    };
+    el.addEventListener('pointerdown', onDown);
+    el.addEventListener('pointermove', onMove, { passive: false });
+    el.addEventListener('pointerup', finish);
+    el.addEventListener('pointercancel', finish);
+    return () => {
+      el.removeEventListener('pointerdown', onDown);
+      el.removeEventListener('pointermove', onMove);
+      el.removeEventListener('pointerup', finish);
+      el.removeEventListener('pointercancel', finish);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!slide) return;
+    const id = window.setTimeout(() => setSlide(null), 220);
+    return () => window.clearTimeout(id);
+  }, [slide]);
+
   // ---- キーボード操作(Google カレンダー準拠) ----
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -611,7 +682,9 @@ export default function App() {
         </nav>
         {sidebarOpen && <div className="scrim" onClick={() => setSidebarOpen(false)} />}
 
-        <main className="main">
+        <main ref={mainRef} className="main">
+          <MonthStrip year={year} month0={month0} onChange={(y, m) => setMonth(new Date(y, m, 1))} />
+          <div className={'month-slide' + (slide ? ' slide-' + slide : '')}>
           <MonthView
             year={year}
             month0={month0}
@@ -638,6 +711,7 @@ export default function App() {
                 : undefined
             }
           />
+          </div>
         </main>
 
         {selected && (
