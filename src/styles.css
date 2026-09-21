@@ -940,6 +940,46 @@ button {
   align-items: center;
   margin-top: 8px;
 }
+.modal-heading {
+  margin: 0 0 4px;
+  font-size: 18px;
+  font-weight: 500;
+}
+.modal .row.check {
+  flex-direction: row;
+  align-items: center;
+  gap: 8px;
+  color: var(--text);
+  font-size: 14px;
+}
+.modal .row.check input {
+  width: auto;
+}
+.link-btn {
+  border: none;
+  background: none;
+  color: var(--blue);
+  padding: 0;
+  font-size: inherit;
+  text-decoration: underline;
+}
+.yohaku-login {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.yohaku-msg {
+  margin: 4px 0 0;
+  padding: 8px 10px;
+  border-radius: 6px;
+  font-size: 13px;
+  background: #e6f4ea;
+  color: var(--green);
+}
+.yohaku-msg.error {
+  background: #fce8e6;
+  color: var(--red);
+}
 
 /* ---- 診断オーバーレイ ---- */
 .debug-overlay {

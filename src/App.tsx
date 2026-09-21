@@ -6,6 +6,7 @@ import InkToolbar from './components/InkToolbar.tsx';
 import LayerBar from './components/LayerBar.tsx';
 import MonthStrip from './components/MonthStrip.tsx';
 import FreeSpace from './components/FreeSpace.tsx';
+import YohakuDialog from './components/YohakuDialog.tsx';
 import { layerOf } from './components/MonthInk.tsx';
 import {
   DEFAULT_LAYER_ID,
@@ -145,6 +146,7 @@ export default function App() {
   const inkModeRef = useRef(inkMode);
   inkModeRef.current = inkMode;
   const [slide, setSlide] = useState<'left' | 'right' | null>(null);
+  const [yohakuOpen, setYohakuOpen] = useState(false);
 
   const year = month.getFullYear();
   const month0 = month.getMonth();
@@ -845,6 +847,7 @@ export default function App() {
               dimOthers={dimOthers}
               onChange={changeFree}
               onGrow={growFree}
+              onSend={() => setYohakuOpen(true)}
             />
           )}
           </div>
@@ -869,6 +872,18 @@ export default function App() {
       </div>
 
       {DEBUG && <DebugOverlay />}
+
+      {yohakuOpen && monthInk && (
+        <YohakuDialog
+          monthLabel={`${year}年${month0 + 1}月`}
+          gridStrokes={monthInk.strokes}
+          freeStrokes={freeOf(monthInk).strokes}
+          freeHeight={freeOf(monthInk).height}
+          layers={inkSettings.layers}
+          defaultLayerId={DEFAULT_LAYER_ID}
+          onClose={() => setYohakuOpen(false)}
+        />
+      )}
 
       {editor && (
         <EventEditor

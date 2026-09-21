@@ -15,6 +15,7 @@ interface Props {
   dimOthers: boolean;
   onChange(strokes: Stroke[]): void;
   onGrow(): void;
+  onSend(): void;
 }
 
 export default function FreeSpace(p: Props) {
@@ -38,6 +39,9 @@ export default function FreeSpace(p: Props) {
         <h3>フリースペース</h3>
         <span className="muted small">{p.active ? 'ここにも自由に書けます' : '「✎ 手書き」を押すと書けます'}</span>
         <span className="spacer" />
+        <button type="button" className="btn-small" onClick={p.onSend} title="この月の手書きを余白ノートの新しいページとして送ります">
+          余白ノートへ送る
+        </button>
         <button type="button" className="btn-small" onClick={p.onGrow} title="下に 1 段分伸ばします。下端近くまで書くと自動でも伸びます">
           用紙を伸ばす
         </button>
