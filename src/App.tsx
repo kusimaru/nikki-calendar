@@ -582,14 +582,9 @@ export default function App() {
           {inkMode ? '✎ 手書き中' : '✎ 手書き'}
         </button>
         {signedIn ? (
-          <>
-            <button type="button" className="btn" onClick={() => refreshEvents()}>
-              更新
-            </button>
-            <button type="button" className="btn" onClick={() => signOut()}>
-              サインアウト
-            </button>
-          </>
+          <button type="button" className="btn" onClick={() => refreshEvents()}>
+            更新
+          </button>
         ) : (
           <button type="button" className="btn primary" onClick={() => doSignIn(false)} disabled={!hasClientId()}>
             サインイン
@@ -697,6 +692,23 @@ export default function App() {
               </li>
             ))}
           </ul>
+          {signedIn && (
+            <>
+              <h2>アカウント</h2>
+              <button
+                type="button"
+                className="btn-small"
+                onClick={() => {
+                  if (confirm('サインアウトしますか?\n予定の表示とドライブへの保存が止まります(この端末に保存済みの日記は残ります)。')) {
+                    signOut();
+                    setSidebarOpen(false);
+                  }
+                }}
+              >
+                サインアウト
+              </button>
+            </>
+          )}
           <h2>操作</h2>
           <ul className="help">
             <li>日付をクリック: その日の予定・日記を開く</li>
