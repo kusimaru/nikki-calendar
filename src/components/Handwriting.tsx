@@ -6,9 +6,9 @@ import InkToolbar from './InkToolbar.tsx';
 
 export const LOGICAL_WIDTH = 1000;
 const SIZES: [string, number][] = [
-  ['細', 3],
-  ['中', 6],
-  ['太', 12],
+  ['細', 2],
+  ['中', 3],
+  ['太', 6],
 ];
 
 interface Props {

@@ -34,9 +34,9 @@ import {
 
 const SELECTED_CALS_KEY = 'selected_calendars';
 const INK_SIZES: [string, number][] = [
-  ['細', 2.5],
-  ['中', 4],
-  ['太', 7],
+  ['細', 1.5],
+  ['中', 2.5],
+  ['太', 4],
 ];
 
 type EditorState = { mode: 'create'; date: Date } | { mode: 'edit'; event: CalEvent } | null;
