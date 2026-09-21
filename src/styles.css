@@ -292,6 +292,70 @@ button {
 .ink-bar .hw-toolbar {
   margin-bottom: 0;
 }
+.layer-bar {
+  flex-basis: 100%;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 12px;
+  padding-top: 6px;
+  border-top: 1px dashed var(--line);
+}
+.layer-label {
+  font-size: 12px;
+  color: var(--muted);
+}
+.layer-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+.layer-chip {
+  display: inline-flex;
+  align-items: stretch;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  overflow: hidden;
+  background: var(--bg);
+}
+.layer-chip.active {
+  border-color: var(--blue);
+  background: #e8f0fe;
+}
+.layer-chip.hidden .layer-name {
+  color: #9aa0a6;
+  text-decoration: line-through;
+}
+.layer-chip button {
+  border: none;
+  background: transparent;
+  padding: 3px 8px;
+  font-size: 13px;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+.layer-chip .layer-eye {
+  padding: 3px 4px 3px 8px;
+  color: var(--muted);
+  font-size: 11px;
+}
+.layer-chip.active .layer-name {
+  color: var(--blue);
+}
+.layer-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  flex: none;
+}
+.layer-color-select {
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  padding: 3px 6px;
+  font-size: 13px;
+  background: var(--bg);
+}
 .btn.active {
   background: #e8f0fe;
   border-color: var(--blue);

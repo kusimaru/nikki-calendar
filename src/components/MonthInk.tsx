@@ -2,6 +2,7 @@
 import { useEffect, useRef, type RefObject } from 'react';
 import type { Stroke } from '../lib/diary.ts';
 import { blockTouchGestures, cachedPath, isPrimaryButton, logPointer, outlinePath, pressureOf, type InkState } from '../lib/ink.ts';
+import { DEFAULT_LAYER_ID } from '../lib/layers.ts';
 
 const LOGICAL = 1000;
 
@@ -12,14 +13,35 @@ interface Props {
   state: InkState;
   /** 手書きモード(オンのときだけ描く。オフのときは一切干渉しない) */
   active: boolean;
+  /** 描く先のレイヤー */
+  activeLayer: string;
+  /** 非表示のレイヤー */
+  hiddenLayers: Set<string>;
+  /** 手書き中、選択中以外のレイヤーを薄く表示する */
+  dimOthers: boolean;
   onChange(strokes: Stroke[]): void;
 }
 
-function paint(ctx: CanvasRenderingContext2D, strokes: Stroke[], sx: number, sy: number) {
+export function layerOf(s: Stroke): string {
+  return s.layer ?? DEFAULT_LAYER_ID;
+}
+
+function paint(
+  ctx: CanvasRenderingContext2D,
+  strokes: Stroke[],
+  sx: number,
+  sy: number,
+  hidden: Set<string>,
+  dimExcept: string | null,
+) {
   for (const s of strokes) {
+    const layer = layerOf(s);
+    if (hidden.has(layer)) continue;
+    ctx.globalAlpha = dimExcept !== null && layer !== dimExcept ? 0.3 : 1;
     ctx.fillStyle = s.color;
     ctx.fill(cachedPath(s, sx, sy));
   }
+  ctx.globalAlpha = 1;
 }
 
 function paintLive(ctx: CanvasRenderingContext2D, points: number[][], color: string, size: number, pen: boolean, sx: number, sy: number) {
@@ -28,7 +50,7 @@ function paintLive(ctx: CanvasRenderingContext2D, points: number[][], color: str
   ctx.fill(outlinePath(pts, size * sx, pen));
 }
 
-export default function MonthInk({ containerRef, strokes, state, active, onChange }: Props) {
+export default function MonthInk({ containerRef, strokes, state, active, activeLayer, hiddenLayers, dimOthers, onChange }: Props) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const offRef = useRef<HTMLCanvasElement | null>(null);
   const sizeRef = useRef({ w: 0, h: 0 });
@@ -41,10 +63,16 @@ export default function MonthInk({ containerRef, strokes, state, active, onChang
   const stateRef = useRef(state);
   const activeRef = useRef(active);
   const onChangeRef = useRef(onChange);
+  const layerRef = useRef(activeLayer);
+  const hiddenRef = useRef(hiddenLayers);
+  const dimRef = useRef(dimOthers);
   strokesRef.current = strokes;
   stateRef.current = state;
   activeRef.current = active;
   onChangeRef.current = onChange;
+  layerRef.current = activeLayer;
+  hiddenRef.current = hiddenLayers;
+  dimRef.current = dimOthers;
 
   const dpr = window.devicePixelRatio || 1;
 
@@ -58,7 +86,8 @@ export default function MonthInk({ containerRef, strokes, state, active, onChang
     off.height = Math.round(h * dpr);
     const octx = off.getContext('2d')!;
     octx.setTransform(dpr, 0, 0, dpr, 0, 0);
-    paint(octx, strokesRef.current, w / LOGICAL, h / LOGICAL);
+    const dimExcept = activeRef.current && dimRef.current ? layerRef.current : null;
+    paint(octx, strokesRef.current, w / LOGICAL, h / LOGICAL, hiddenRef.current, dimExcept);
     renderLive();
   };
 
@@ -98,11 +127,11 @@ export default function MonthInk({ containerRef, strokes, state, active, onChang
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [containerRef, dpr]);
 
-  // ストローク変更時に再描画
+  // ストロークやレイヤー表示の変更時に再描画
   useEffect(() => {
     renderAll();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [strokes]);
+  }, [strokes, active, activeLayer, hiddenLayers, dimOthers]);
 
   // ポインタ入力の横取り
   useEffect(() => {
@@ -118,8 +147,9 @@ export default function MonthInk({ containerRef, strokes, state, active, onChang
       const { w, h } = sizeRef.current;
       const rx = (14 / w) * LOGICAL;
       const ry = (14 / h) * LOGICAL;
+      // 消しゴムは選択中のレイヤーの線だけに効く
       const remain = strokesRef.current.filter(
-        (s) => !s.points.some((p) => Math.abs(p[0] - x) < rx && Math.abs(p[1] - y) < ry),
+        (s) => layerOf(s) !== layerRef.current || !s.points.some((p) => Math.abs(p[0] - x) < rx && Math.abs(p[1] - y) < ry),
       );
       if (remain.length !== strokesRef.current.length) onChangeRef.current(remain);
     };
@@ -176,7 +206,10 @@ export default function MonthInk({ containerRef, strokes, state, active, onChang
       window.setTimeout(() => (justDrew.current = false), 400);
       const st = stateRef.current;
       if (st.tool === 'pen' && d.points.length > 0) {
-        onChangeRef.current([...strokesRef.current, { points: d.points, color: st.color, size: st.size, pen: d.pen }]);
+        onChangeRef.current([
+          ...strokesRef.current,
+          { points: d.points, color: st.color, size: st.size, pen: d.pen, layer: layerRef.current },
+        ]);
       } else {
         renderLive();
       }

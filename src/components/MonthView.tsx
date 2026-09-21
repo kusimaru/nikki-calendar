@@ -22,6 +22,9 @@ interface Props {
     strokes: Stroke[];
     state: InkState;
     active: boolean;
+    activeLayer: string;
+    hiddenLayers: Set<string>;
+    dimOthers: boolean;
     onChange(strokes: Stroke[]): void;
   };
 }
@@ -106,6 +109,9 @@ export default function MonthView({ year, month0, eventsByDay, diaryDays, select
             strokes={ink.strokes}
             state={ink.state}
             active={ink.active}
+            activeLayer={ink.activeLayer}
+            hiddenLayers={ink.hiddenLayers}
+            dimOthers={ink.dimOthers}
             onChange={ink.onChange}
           />
         )}

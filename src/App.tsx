@@ -3,6 +3,22 @@ import MonthView from './components/MonthView.tsx';
 import DayPanel from './components/DayPanel.tsx';
 import EventEditor from './components/EventEditor.tsx';
 import InkToolbar from './components/InkToolbar.tsx';
+import LayerBar from './components/LayerBar.tsx';
+import { layerOf } from './components/MonthInk.tsx';
+import {
+  DEFAULT_LAYER_ID,
+  loadActiveLayer,
+  loadDimOthers,
+  loadHiddenLayers,
+  loadSettings,
+  localSettings,
+  newLayerId,
+  saveActiveLayer,
+  saveDimOthers,
+  saveHiddenLayers,
+  saveSettings,
+  type InkSettings,
+} from './lib/layers.ts';
 import { defaultInkState, inkLog, type InkState } from './lib/ink.ts';
 import { emptyMonthInk, loadMonthInk, monthKey, saveMonthInk, type MonthInk } from './lib/monthInk.ts';
 import { addDays, addMonths, monthGrid, ymdKey } from './lib/date.ts';
@@ -87,6 +103,10 @@ export default function App() {
   const monthInkRef = useRef<MonthInk | null>(null);
   const inkTimer = useRef<number | null>(null);
   const inkDirty = useRef(false);
+  const [inkSettings, setInkSettings] = useState<InkSettings>(() => localSettings());
+  const [activeLayer, setActiveLayer] = useState(() => loadActiveLayer());
+  const [hiddenLayers, setHiddenLayers] = useState<Set<string>>(() => loadHiddenLayers());
+  const [dimOthers, setDimOthers] = useState(() => loadDimOthers());
 
   const entryRef = useRef<DiaryEntry | null>(null);
   const saveTimer = useRef<number | null>(null);
@@ -173,6 +193,49 @@ export default function App() {
       alive = false;
     };
   }, [year, month0, signedIn, report]);
+
+  // ---- 手書きレイヤー定義(全月共通) ----
+  useEffect(() => {
+    let alive = true;
+    loadSettings().then((s) => alive && setInkSettings(s));
+    return () => {
+      alive = false;
+    };
+  }, [signedIn]);
+
+  // 選択中レイヤーが存在しなければ先頭にする
+  useEffect(() => {
+    if (!inkSettings.layers.some((l) => l.id === activeLayer)) {
+      const id = inkSettings.layers[0]?.id ?? DEFAULT_LAYER_ID;
+      setActiveLayer(id);
+      saveActiveLayer(id);
+    }
+  }, [inkSettings, activeLayer]);
+
+  const updateLayers = (mutate: (layers: InkSettings['layers']) => InkSettings['layers']) => {
+    const next: InkSettings = { ...inkSettings, layers: mutate(inkSettings.layers), updatedAt: new Date().toISOString() };
+    setInkSettings(next);
+    saveSettings(next).catch(report);
+  };
+
+  const selectLayer = (id: string) => {
+    setActiveLayer(id);
+    saveActiveLayer(id);
+    const layer = inkSettings.layers.find((l) => l.id === id);
+    if (layer) setInkState((s) => ({ ...s, color: layer.color, tool: 'pen' }));
+    // 描く先が非表示なら表示に戻す
+    if (hiddenLayers.has(id)) toggleLayerVisible(id);
+  };
+
+  const toggleLayerVisible = (id: string) => {
+    setHiddenLayers((prev) => {
+      const s = new Set(prev);
+      if (s.has(id)) s.delete(id);
+      else s.add(id);
+      saveHiddenLayers(s);
+      return s;
+    });
+  };
 
   // ---- 月表示の手書き(月ごと) ----
   const flushInk = useCallback(async () => {
@@ -443,10 +506,20 @@ export default function App() {
           <InkToolbar
             state={inkState}
             sizes={INK_SIZES}
-            canUndo={monthInk.strokes.length > 0}
+            canUndo={monthInk.strokes.some((s) => layerOf(s) === activeLayer)}
             onChange={setInkState}
-            onUndo={() => changeInk(monthInk.strokes.slice(0, -1))}
-            onClear={() => changeInk([])}
+            onUndo={() => {
+              // 選択中レイヤーの最後の線だけ取り消す
+              let idx = -1;
+              for (let i = monthInk.strokes.length - 1; i >= 0; i--) {
+                if (layerOf(monthInk.strokes[i]) === activeLayer) {
+                  idx = i;
+                  break;
+                }
+              }
+              if (idx >= 0) changeInk(monthInk.strokes.filter((_, i) => i !== idx));
+            }}
+            onClear={() => changeInk(monthInk.strokes.filter((s) => layerOf(s) !== activeLayer))}
           />
           <span className="spacer" />
           <span className="save-state">
@@ -455,6 +528,40 @@ export default function App() {
           <button type="button" className="btn primary" onClick={() => setInkMode(false)}>
             完了
           </button>
+          <LayerBar
+            layers={inkSettings.layers}
+            activeId={activeLayer}
+            hidden={hiddenLayers}
+            dimOthers={dimOthers}
+            strokeCounts={monthInk.strokes.reduce((m, s) => m.set(layerOf(s), (m.get(layerOf(s)) ?? 0) + 1), new Map<string, number>())}
+            onSelect={selectLayer}
+            onToggleVisible={toggleLayerVisible}
+            onShowAll={() => {
+              const s = new Set<string>();
+              saveHiddenLayers(s);
+              setHiddenLayers(s);
+            }}
+            onAdd={(name, color) => {
+              const id = newLayerId();
+              updateLayers((ls) => [...ls, { id, name, color }]);
+              setActiveLayer(id);
+              saveActiveLayer(id);
+              setInkState((s) => ({ ...s, color, tool: 'pen' }));
+            }}
+            onRename={(id, name) => updateLayers((ls) => ls.map((l) => (l.id === id ? { ...l, name } : l)))}
+            onRecolor={(id, color) => {
+              updateLayers((ls) => ls.map((l) => (l.id === id ? { ...l, color } : l)));
+              if (id === activeLayer) setInkState((s) => ({ ...s, color }));
+            }}
+            onRemove={(id) => {
+              updateLayers((ls) => ls.filter((l) => l.id !== id));
+              changeInk(monthInk.strokes.filter((s) => layerOf(s) !== id));
+            }}
+            onDimChange={(v) => {
+              setDimOthers(v);
+              saveDimOthers(v);
+            }}
+          />
         </div>
       )}
 
@@ -519,7 +626,15 @@ export default function App() {
             onOpenEvent={(ev) => setEditor({ mode: 'edit', event: ev })}
             ink={
               monthInk
-                ? { strokes: monthInk.strokes, state: inkState, active: inkMode, onChange: changeInk }
+                ? {
+                    strokes: monthInk.strokes,
+                    state: inkState,
+                    active: inkMode,
+                    activeLayer,
+                    hiddenLayers,
+                    dimOthers,
+                    onChange: changeInk,
+                  }
                 : undefined
             }
           />

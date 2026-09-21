@@ -9,6 +9,8 @@ export interface Stroke {
   size: number;
   /** ペン入力(筆圧あり)かどうか。false なら描画時に筆圧を擬似生成 */
   pen: boolean;
+  /** 月表示の手書きのみ: レイヤー ID(無ければ既定レイヤー) */
+  layer?: string;
 }
 
 export interface DiaryImage {
