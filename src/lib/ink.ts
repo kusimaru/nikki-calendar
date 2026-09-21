@@ -61,21 +61,52 @@ export function logPointer(
 }
 
 /**
- * iPad Safari 向け: 要素上のタッチ既定動作(スクロール・拡大)を止める。
- * shouldBlock(stylus) が true のときだけ止めるので、ペン使用時は指でスクロールできる。
+ * iPad Safari 向け: 描画面のタッチ既定動作(スクロール・拡大)を確実に止める。
+ * ペンの縦線がスクロールと誤認されるのを防ぐため、手書き中は 1 本指も含めて全て止める。
+ * 代わりに 2 本指で触れたときは、指定のスクロール要素を自前で上下に動かす。
  */
-export function blockTouchGestures(el: HTMLElement, shouldBlock: (stylus: boolean) => boolean): () => void {
-  const h = (e: TouchEvent) => {
-    if (!e.cancelable) return;
-    const t = (e.touches[0] ?? e.changedTouches[0]) as (Touch & { touchType?: string }) | undefined;
-    const stylus = t?.touchType === 'stylus';
-    if (shouldBlock(stylus)) e.preventDefault();
+export function blockTouchGestures(
+  el: HTMLElement,
+  isActive: () => boolean,
+  getScroller?: () => HTMLElement | null,
+): () => void {
+  let lastY: number | null = null;
+  const avgY = (e: TouchEvent) => {
+    let sum = 0;
+    for (let i = 0; i < e.touches.length; i++) sum += e.touches[i].clientY;
+    return sum / e.touches.length;
   };
-  el.addEventListener('touchstart', h, { passive: false });
-  el.addEventListener('touchmove', h, { passive: false });
+  const onStart = (e: TouchEvent) => {
+    if (!isActive()) return;
+    if (e.cancelable) e.preventDefault();
+    lastY = e.touches.length >= 2 ? avgY(e) : null;
+  };
+  const onMove = (e: TouchEvent) => {
+    if (!isActive()) return;
+    if (e.cancelable) e.preventDefault();
+    if (e.touches.length >= 2) {
+      const y = avgY(e);
+      if (lastY !== null) {
+        const sc = getScroller?.();
+        if (sc) sc.scrollTop -= y - lastY;
+      }
+      lastY = y;
+    } else {
+      lastY = null;
+    }
+  };
+  const onEnd = (e: TouchEvent) => {
+    lastY = e.touches.length >= 2 ? avgY(e) : null;
+  };
+  el.addEventListener('touchstart', onStart, { passive: false });
+  el.addEventListener('touchmove', onMove, { passive: false });
+  el.addEventListener('touchend', onEnd);
+  el.addEventListener('touchcancel', onEnd);
   return () => {
-    el.removeEventListener('touchstart', h);
-    el.removeEventListener('touchmove', h);
+    el.removeEventListener('touchstart', onStart);
+    el.removeEventListener('touchmove', onMove);
+    el.removeEventListener('touchend', onEnd);
+    el.removeEventListener('touchcancel', onEnd);
   };
 }
 

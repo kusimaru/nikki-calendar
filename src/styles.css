@@ -350,7 +350,7 @@ button {
 }
 .free-space-paper.inking {
   cursor: crosshair;
-  touch-action: pan-y;
+  touch-action: none;
 }
 .month-slide.slide-left {
   animation: slide-from-right 0.22s ease-out;
@@ -412,11 +412,12 @@ button {
 }
 .month-body.inking {
   cursor: crosshair;
-  touch-action: pan-y;
+  touch-action: none;
 }
-/* 手書き中: 拡大・長押し選択を止める。縦スクロールは指に許し、ペンの線は touchstart 側で守る */
+/* 手書き中はページ全体でスクロール・拡大・長押し選択を止める(iPad Safari で線が途切れる対策)。
+   移動は 2 本指スクロールとツールバーの「▲ 月表示 / ▼ フリースペース」で行う */
 .app.inking {
-  touch-action: pan-y;
+  touch-action: none;
 }
 .month-body.inking,
 .month-body.inking * {

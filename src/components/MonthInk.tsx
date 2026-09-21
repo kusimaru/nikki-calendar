@@ -186,6 +186,12 @@ export default function MonthInk({
       if (!isPrimaryButton(e)) return;
       if (e.pointerType === 'pen') penSeen.current = true;
       const st = stateRef.current;
+      // 2 本目の指が触れたらスクロール操作とみなし、指で描きかけの線は捨てる
+      if (e.pointerType === 'touch' && drawing.current && !drawing.current.pen) {
+        drawing.current = null;
+        renderLive();
+        return;
+      }
       // パームリジェクション: ペンを検出済み(または「ペンのみ」)なら指は無視
       if (e.pointerType === 'touch' && (st.penOnly || penSeen.current)) return;
       try {
@@ -253,10 +259,11 @@ export default function MonthInk({
       }
     };
 
-    // 手書き中: ペンは常に、指は「指で描く」状態のときだけスクロールを止める(ペン使用時は指でスクロール可)
+    // 手書き中は描画面のスクロールを止める(2 本指なら月表示全体をスクロール)
     const unblock = blockTouchGestures(
       el,
-      (stylus) => activeRef.current && (stylus || !(stateRef.current.penOnly || penSeen.current)),
+      () => activeRef.current,
+      () => el.closest<HTMLElement>('.month-slide'),
     );
     el.addEventListener('pointerdown', onDown, { capture: true });
     el.addEventListener('pointermove', onMove, { capture: true });

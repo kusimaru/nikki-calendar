@@ -675,6 +675,24 @@ export default function App() {
           <span className="save-state">
             {inkSave === 'saving' ? '保存中…' : inkSave === 'saved' ? 'ドライブに保存済み' : inkSave === 'local' ? 'この端末のみに保存' : inkSave === 'error' ? '保存に失敗' : ''}
           </span>
+          <div className="hw-group">
+            <button
+              type="button"
+              className="btn-small"
+              title="月表示の先頭へ"
+              onClick={() => mainRef.current?.querySelector('.month-slide')?.scrollTo({ top: 0 })}
+            >
+              ▲ 月表示
+            </button>
+            <button
+              type="button"
+              className="btn-small"
+              title="フリースペースへ"
+              onClick={() => mainRef.current?.querySelector('.free-space')?.scrollIntoView({ block: 'start' })}
+            >
+              ▼ フリースペース
+            </button>
+          </div>
           <button type="button" className="btn primary" onClick={() => setInkMode(false)}>
             完了
           </button>
