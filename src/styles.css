@@ -252,10 +252,10 @@ button {
   grid-template-rows: repeat(6, 1fr);
   min-height: 0;
   position: relative;
-  touch-action: none;
 }
 .month-body.inking {
   cursor: crosshair;
+  touch-action: none;
 }
 .month-body.inking .cell,
 .month-body.inking .chip {

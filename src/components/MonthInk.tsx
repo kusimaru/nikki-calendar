@@ -10,10 +10,8 @@ interface Props {
   containerRef: RefObject<HTMLDivElement | null>;
   strokes: Stroke[];
   state: InkState;
-  /** 手書きモード(すべての入力で描く) */
+  /** 手書きモード(オンのときだけ描く。オフのときは一切干渉しない) */
   active: boolean;
-  /** モード外でもペン入力なら描く */
-  penAlways: boolean;
   onChange(strokes: Stroke[]): void;
 }
 
@@ -25,7 +23,7 @@ function paint(ctx: CanvasRenderingContext2D, strokes: Stroke[], sx: number, sy:
   }
 }
 
-export default function MonthInk({ containerRef, strokes, state, active, penAlways, onChange }: Props) {
+export default function MonthInk({ containerRef, strokes, state, active, onChange }: Props) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const offRef = useRef<HTMLCanvasElement | null>(null);
   const sizeRef = useRef({ w: 0, h: 0 });
@@ -37,12 +35,10 @@ export default function MonthInk({ containerRef, strokes, state, active, penAlwa
   const strokesRef = useRef(strokes);
   const stateRef = useRef(state);
   const activeRef = useRef(active);
-  const penAlwaysRef = useRef(penAlways);
   const onChangeRef = useRef(onChange);
   strokesRef.current = strokes;
   stateRef.current = state;
   activeRef.current = active;
-  penAlwaysRef.current = penAlways;
   onChangeRef.current = onChange;
 
   const dpr = window.devicePixelRatio || 1;
@@ -124,15 +120,14 @@ export default function MonthInk({ containerRef, strokes, state, active, penAlwa
     };
 
     const onDown = (e: PointerEvent) => {
+      if (!activeRef.current) return; // 手書きモード外では何もしない
+      e.preventDefault();
+      e.stopPropagation();
       if (e.button !== 0) return;
       if (e.pointerType === 'pen') penSeen.current = true;
       const st = stateRef.current;
-      const draw = activeRef.current
-        ? !(e.pointerType === 'touch' && (st.penOnly || penSeen.current))
-        : penAlwaysRef.current && e.pointerType === 'pen';
-      if (!draw) return;
-      e.preventDefault();
-      e.stopPropagation();
+      // パームリジェクション: ペンを検出済み(または「ペンのみ」)なら指は無視
+      if (e.pointerType === 'touch' && (st.penOnly || penSeen.current)) return;
       el.setPointerCapture(e.pointerId);
       const p = toLogical(e);
       if (st.tool === 'eraser') {
@@ -177,7 +172,8 @@ export default function MonthInk({ containerRef, strokes, state, active, penAlwa
     };
 
     const swallowClick = (e: MouseEvent) => {
-      if (justDrew.current || drawing.current) {
+      // 手書きモード中は日付や予定のクリックを一切通さない
+      if (activeRef.current || justDrew.current || drawing.current) {
         e.stopPropagation();
         e.preventDefault();
       }

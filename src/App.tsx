@@ -33,7 +33,6 @@ import {
 } from './lib/diary.ts';
 
 const SELECTED_CALS_KEY = 'selected_calendars';
-const PEN_ALWAYS_KEY = 'ink_pen_always';
 const INK_SIZES: [string, number][] = [
   ['細', 1.5],
   ['中', 3],
@@ -66,7 +65,6 @@ export default function App() {
   const [loadingEvents, setLoadingEvents] = useState(false);
   const [inkMode, setInkMode] = useState(false);
   const [inkState, setInkState] = useState<InkState>(() => defaultInkState(INK_SIZES[1][1]));
-  const [penAlways, setPenAlways] = useState(() => localStorage.getItem(PEN_ALWAYS_KEY) !== '0');
   const [monthInk, setMonthInk] = useState<MonthInk | null>(null);
   const [inkSave, setInkSave] = useState<SaveState>('idle');
   const monthInkRef = useRef<MonthInk | null>(null);
@@ -403,9 +401,9 @@ export default function App() {
           type="button"
           className={'btn' + (inkMode ? ' active' : '')}
           onClick={() => setInkMode((v) => !v)}
-          title="月表示の上に手書きする"
+          title="月表示の上に手書きする(押している間は日付を開きません)"
         >
-          ✎ 手書き
+          {inkMode ? '✎ 手書き中' : '✎ 手書き'}
         </button>
         {signedIn ? (
           <>
@@ -432,19 +430,6 @@ export default function App() {
             onChange={setInkState}
             onUndo={() => changeInk(monthInk.strokes.slice(0, -1))}
             onClear={() => changeInk([])}
-            extra={
-              <label className="hw-check" title="手書きモードでなくてもペン入力なら描く">
-                <input
-                  type="checkbox"
-                  checked={penAlways}
-                  onChange={(e) => {
-                    setPenAlways(e.target.checked);
-                    localStorage.setItem(PEN_ALWAYS_KEY, e.target.checked ? '1' : '0');
-                  }}
-                />
-                ペンは常に描く
-              </label>
-            }
           />
           <span className="spacer" />
           <span className="save-state">
@@ -497,7 +482,7 @@ export default function App() {
             <li>日付をクリック: その日の予定・日記を開く</li>
             <li>ダブルクリック / c キー: 予定を作成</li>
             <li>t: 今日, j/k: 翌月/前月</li>
-            <li>✎ 手書き: 月表示の上に直接書く(ペンは常に描けます)</li>
+            <li>✎ 手書き: 押すと月表示の上に直接書けます。書き終えたら「完了」</li>
           </ul>
         </nav>
         {sidebarOpen && <div className="scrim" onClick={() => setSidebarOpen(false)} />}
@@ -517,7 +502,7 @@ export default function App() {
             onOpenEvent={(ev) => setEditor({ mode: 'edit', event: ev })}
             ink={
               monthInk
-                ? { strokes: monthInk.strokes, state: inkState, active: inkMode, penAlways, onChange: changeInk }
+                ? { strokes: monthInk.strokes, state: inkState, active: inkMode, onChange: changeInk }
                 : undefined
             }
           />

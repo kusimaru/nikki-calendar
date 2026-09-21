@@ -22,7 +22,6 @@ interface Props {
     strokes: Stroke[];
     state: InkState;
     active: boolean;
-    penAlways: boolean;
     onChange(strokes: Stroke[]): void;
   };
 }
@@ -107,7 +106,6 @@ export default function MonthView({ year, month0, eventsByDay, diaryDays, select
             strokes={ink.strokes}
             state={ink.state}
             active={ink.active}
-            penAlways={ink.penAlways}
             onChange={ink.onChange}
           />
         )}
