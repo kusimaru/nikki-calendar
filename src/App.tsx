@@ -148,7 +148,7 @@ export default function App() {
       return next;
     });
   };
-  const [inkState, setInkStateRaw] = useState<InkState>(() => defaultInkState(INK_SIZES[0][1]));
+  const [inkState, setInkStateRaw] = useState<InkState>(() => defaultInkState(INK_SIZES[1][1]));
   const setInkState = (v: InkState | ((prev: InkState) => InkState)) =>
     setInkStateRaw((prev) => {
       const next = typeof v === 'function' ? v(prev) : v;

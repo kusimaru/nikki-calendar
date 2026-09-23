@@ -4,6 +4,7 @@ import { getStroke } from 'perfect-freehand';
 export const INK_COLORS = ['#202124', '#d93025', '#1a73e8', '#188038', '#f9ab00'];
 /** ペンの太さ(論理座標 幅 1000 基準)。カレンダー上・フリースペース・日付の手書き欄で共通 */
 export const INK_SIZES: [string, number][] = [
+  ['極細', 1.2],
   ['細', 2],
   ['中', 3],
   ['太', 5],
