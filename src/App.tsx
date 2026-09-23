@@ -23,7 +23,7 @@ import {
   saveSettings,
   type InkSettings,
 } from './lib/layers.ts';
-import { INK_SIZES, defaultInkState, inkLog, type InkState } from './lib/ink.ts';
+import { INK_SIZES, defaultInkState, inkLog, savePenPref, type InkState } from './lib/ink.ts';
 import { emptyMonthInk, freeOf, loadMonthInk, monthKey, saveMonthInk, type MonthInk } from './lib/monthInk.ts';
 import { addDays, addMonths, monthGrid, ymdKey } from './lib/date.ts';
 import { AuthError, hasClientId, isSignedIn, onAuthChange, signIn, signOut } from './lib/google/auth.ts';
@@ -148,7 +148,13 @@ export default function App() {
       return next;
     });
   };
-  const [inkState, setInkState] = useState<InkState>(() => defaultInkState(INK_SIZES[1][1]));
+  const [inkState, setInkStateRaw] = useState<InkState>(() => defaultInkState(INK_SIZES[0][1]));
+  const setInkState = (v: InkState | ((prev: InkState) => InkState)) =>
+    setInkStateRaw((prev) => {
+      const next = typeof v === 'function' ? v(prev) : v;
+      savePenPref(next);
+      return next;
+    });
   const [monthInk, setMonthInk] = useState<MonthInk | null>(null);
   const [inkSave, setInkSave] = useState<SaveState>('idle');
   const monthInkRef = useRef<MonthInk | null>(null);

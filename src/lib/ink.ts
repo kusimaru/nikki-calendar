@@ -18,14 +18,54 @@ export interface InkState {
 }
 
 export const PEN_ONLY_KEY = 'handwriting_pen_only';
+const PEN_PREF_KEY = 'ink_pen_pref';
 
+/** 初期状態。太さは前回の選択(無ければ「細」)、色も前回のものを復元する */
 export function defaultInkState(size: number): InkState {
+  let color = INK_COLORS[0];
+  let sz = size;
+  try {
+    const raw = localStorage.getItem(PEN_PREF_KEY);
+    if (raw) {
+      const p = JSON.parse(raw) as { color?: string; size?: number };
+      if (typeof p.color === 'string' && INK_COLORS.includes(p.color)) color = p.color;
+      if (typeof p.size === 'number' && INK_SIZES.some(([, s]) => s === p.size)) sz = p.size;
+    }
+  } catch {
+    /* ignore */
+  }
   return {
     tool: 'pen',
-    color: INK_COLORS[0],
-    size,
+    color,
+    size: sz,
     penOnly: typeof localStorage !== 'undefined' && localStorage.getItem(PEN_ONLY_KEY) === '1',
   };
+}
+
+export function savePenPref(s: InkState) {
+  try {
+    localStorage.setItem(PEN_PREF_KEY, JSON.stringify({ color: s.color, size: s.size }));
+  } catch {
+    /* ignore */
+  }
+}
+
+/**
+ * ペン先のカーソル: ペンの太さと同じ直径の円(PC のマウス・液タブ用)。
+ * diameterPx は画面上のピクセル。消しゴムは大きめの円にする
+ */
+export function circleCursor(diameterPx: number, eraser = false): string {
+  const d = Math.max(4, Math.min(64, Math.round(diameterPx)));
+  const size = d + 4;
+  const c = size / 2;
+  const r = d / 2;
+  const stroke = eraser ? '#d93025' : '#202124';
+  const svg =
+    `<svg xmlns='http://www.w3.org/2000/svg' width='${size}' height='${size}' viewBox='0 0 ${size} ${size}'>` +
+    `<circle cx='${c}' cy='${c}' r='${r}' fill='none' stroke='#fff' stroke-width='2.5'/>` +
+    `<circle cx='${c}' cy='${c}' r='${r}' fill='none' stroke='${stroke}' stroke-width='1'/>` +
+    `</svg>`;
+  return `url("data:image/svg+xml;utf8,${encodeURIComponent(svg)}") ${c} ${c}, crosshair`;
 }
 
 /**

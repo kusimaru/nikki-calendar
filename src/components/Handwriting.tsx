@@ -1,7 +1,7 @@
 // 手書きキャンバス(日別パネル用。Apple Pencil / 液タブ / マウス / 指 対応)
 import { useCallback, useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from 'react';
 import type { Stroke } from '../lib/diary.ts';
-import { INK_SIZES, blockTouchGestures, cachedPath, isPrimaryButton, logPointer, outlinePath, pressureOf, type InkState } from '../lib/ink.ts';
+import { INK_SIZES, blockTouchGestures, cachedPath, circleCursor, isPrimaryButton, logPointer, outlinePath, pressureOf, type InkState } from '../lib/ink.ts';
 import InkToolbar from './InkToolbar.tsx';
 
 export const LOGICAL_WIDTH = 1000;
@@ -195,7 +195,12 @@ export default function Handwriting({ strokes, height, ink, onInkChange, onChang
         <canvas
           ref={canvasRef}
           className={'hw-canvas' + (ink.tool === 'eraser' ? ' eraser' : '')}
-          style={{ width: '100%', height: height * scale, touchAction }}
+          style={{
+            width: '100%',
+            height: height * scale,
+            touchAction,
+            cursor: ink.tool === 'eraser' ? circleCursor(28, true) : circleCursor(ink.size * scale),
+          }}
           onPointerDown={onPointerDown}
           onPointerMove={onPointerMove}
           onPointerUp={finish}

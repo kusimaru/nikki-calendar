@@ -1,7 +1,7 @@
 // 月表示のグリッドに重ねる手書きレイヤー
 import { useEffect, useRef, type RefObject } from 'react';
 import type { Stroke } from '../lib/diary.ts';
-import { blockTouchGestures, cachedPath, isPrimaryButton, logPointer, outlinePath, pressureOf, type InkState } from '../lib/ink.ts';
+import { blockTouchGestures, cachedPath, circleCursor, isPrimaryButton, logPointer, outlinePath, pressureOf, type InkState } from '../lib/ink.ts';
 import { DEFAULT_LAYER_ID } from '../lib/layers.ts';
 
 export const LOGICAL = 1000;
@@ -155,6 +155,22 @@ export default function MonthInk({
     renderAll();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [strokes, active, activeLayer, hiddenLayers, dimOthers]);
+
+  // ペン先のカーソル(太さと同じ直径の円)
+  useEffect(() => {
+    const el = containerRef.current;
+    if (!el) return;
+    if (!active) {
+      el.style.cursor = '';
+      return;
+    }
+    const { sx } = scales();
+    el.style.cursor = state.tool === 'eraser' ? circleCursor(28, true) : circleCursor(state.size * (sx || 1));
+    return () => {
+      el.style.cursor = '';
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [active, state.tool, state.size, containerRef]);
 
   // ポインタ入力の横取り
   useEffect(() => {

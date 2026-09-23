@@ -349,7 +349,6 @@ button {
   background: #fff repeating-linear-gradient(transparent 0, transparent 39px, #eef 39px, #eef 40px);
 }
 .free-space-paper.inking {
-  cursor: crosshair;
   touch-action: none;
 }
 .month-slide.slide-left {
@@ -411,7 +410,6 @@ button {
   position: relative;
 }
 .month-body.inking {
-  cursor: crosshair;
   touch-action: none;
 }
 /* 手書き中はページ全体でスクロール・拡大・長押し選択を止める(iPad Safari で線が途切れる対策)。
@@ -427,7 +425,7 @@ button {
 }
 .month-body.inking .cell,
 .month-body.inking .chip {
-  cursor: crosshair;
+  cursor: inherit;
 }
 .month-ink {
   position: absolute;
@@ -908,13 +906,9 @@ button {
   border-radius: 6px;
   background: #fff
     repeating-linear-gradient(transparent 0, transparent 31px, #eef 31px, #eef 32px);
-  cursor: crosshair;
   -webkit-touch-callout: none;
   user-select: none;
   -webkit-user-select: none;
-}
-.hw-canvas.eraser {
-  cursor: cell;
 }
 
 /* ---- モーダル ---- */
