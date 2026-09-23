@@ -602,7 +602,7 @@ export default function App() {
 
   return (
     <div
-      className={'app' + (selected ? ' has-panel' : '') + (inkMode ? ' inking' : '')}
+      className={'app' + (selected ? ' has-panel' : '') + (selected && panelWide ? ' panel-wide' : '') + (inkMode ? ' inking' : '')}
       style={{ ['--month-bg' as string]: monthColor }}
     >
       <header className="topbar">

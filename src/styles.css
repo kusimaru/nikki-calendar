@@ -686,6 +686,12 @@ button {
   outline: 2px dashed var(--blue);
   outline-offset: -4px;
 }
+/* 詳細パネルが画面全体を覆っている間は、ヘッダーと月ボタンの帯を隠して縦幅を稼ぐ */
+.app.panel-wide .topbar,
+.app.panel-wide .month-strip,
+.app.panel-wide .banner {
+  display: none;
+}
 /* 全画面: 月表示を覆う */
 .day-panel.wide {
   position: absolute;
@@ -1089,6 +1095,12 @@ button {
     z-index: 25;
     border-left: none;
     padding-bottom: calc(40px + env(safe-area-inset-bottom));
+  }
+  /* 狭い画面ではパネルは常に全画面なので、開いている間はヘッダー類を隠す */
+  .app.has-panel .topbar,
+  .app.has-panel .month-strip,
+  .app.has-panel .banner {
+    display: none;
   }
   /* 狭い画面では常に全画面なので切替ボタンは出さない */
   .wide-toggle {
