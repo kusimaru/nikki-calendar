@@ -26,7 +26,7 @@ import {
 import { INK_SIZES, defaultInkState, inkLog, savePenPref, type InkState } from './lib/ink.ts';
 import { emptyMonthInk, freeOf, loadMonthInk, monthKey, saveMonthInk, type MonthInk } from './lib/monthInk.ts';
 import { addDays, addMonths, monthGrid, ymdKey } from './lib/date.ts';
-import { AuthError, hasClientId, isSignedIn, onAuthChange, signIn, signOut } from './lib/google/auth.ts';
+import { AuthError, hasClientId, hasSignInIntent, isSignedIn, onAuthChange, signIn, signOut, tokenRemainingMs } from './lib/google/auth.ts';
 import {
   createEvent,
   deleteEvent,
@@ -204,15 +204,60 @@ export default function App() {
   // ---- 認証状態 ----
   useEffect(() => onAuthChange(() => setSignedIn(isSignedIn())), []);
 
+  const refreshing = useRef(false);
+  const autoRefreshDisabled = useRef(false);
+  const lastAutoAttempt = useRef(0);
+
   const doSignIn = async (silent = false) => {
+    if (refreshing.current) return;
+    refreshing.current = true;
     try {
       setError(null);
       await signIn(silent);
+      autoRefreshDisabled.current = false;
       await flushPending();
     } catch (e) {
       report(e);
+    } finally {
+      refreshing.current = false;
     }
   };
+
+  // ---- 「ほぼ自動」の再サインイン ----
+  // 自分でサインアウトしていない限り、期限切れ(または残り 5 分未満)なら次の操作のきっかけで裏で取り直す。
+  // ブラウザは操作を伴わないポップアップを止めるため、タップやキー操作の瞬間にだけ行う。
+  useEffect(() => {
+    if (!hasClientId()) return;
+    const onGesture = () => {
+      if (!hasSignInIntent() || refreshing.current || autoRefreshDisabled.current) return;
+      if (tokenRemainingMs() > 5 * 60 * 1000) return;
+      const now = Date.now();
+      if (now - lastAutoAttempt.current < 30 * 1000) return;
+      lastAutoAttempt.current = now;
+      refreshing.current = true;
+      signIn(true)
+        .then(async () => {
+          autoRefreshDisabled.current = false;
+          setError(null);
+          await flushPending();
+        })
+        .catch((e) => {
+          // 失敗したら以後は自動で試さず、バナーの「再サインイン」に任せる
+          autoRefreshDisabled.current = true;
+          setError('サインインの再開に失敗しました。「再サインイン」を押してください(' + (e instanceof Error ? e.message : String(e)) + ')');
+          setSignedIn(false);
+        })
+        .finally(() => {
+          refreshing.current = false;
+        });
+    };
+    document.addEventListener('pointerdown', onGesture, { capture: true });
+    document.addEventListener('keydown', onGesture, { capture: true });
+    return () => {
+      document.removeEventListener('pointerdown', onGesture, { capture: true });
+      document.removeEventListener('keydown', onGesture, { capture: true });
+    };
+  }, []);
 
   // ---- カレンダー一覧 ----
   useEffect(() => {
@@ -755,7 +800,14 @@ export default function App() {
         <div className="banner error">
           <span>{error}</span>
           {!signedIn && hasClientId() && (
-            <button type="button" className="btn-small" onClick={() => doSignIn(true)}>
+            <button
+              type="button"
+              className="btn-small"
+              onClick={() => {
+                autoRefreshDisabled.current = false;
+                doSignIn(true);
+              }}
+            >
               再サインイン
             </button>
           )}

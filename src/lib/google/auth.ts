@@ -2,6 +2,8 @@
 const CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID as string | undefined;
 const SCOPES = ['https://www.googleapis.com/auth/calendar', 'https://www.googleapis.com/auth/drive.file'].join(' ');
 const STORAGE_KEY = 'google_token';
+/** 「自分でサインアウトするまでサインインしたままにする」意思。トークンが切れても残る */
+const INTENT_KEY = 'google_signed_in';
 
 interface Token {
   accessToken: string;
@@ -34,6 +36,14 @@ export class AuthError extends Error {}
 
 let token: Token | null = loadToken();
 const listeners = new Set<() => void>();
+// この変更より前にサインインしていた端末でも自動再開が効くよう、有効なトークンがあれば意思ありとみなす
+if (token) {
+  try {
+    localStorage.setItem(INTENT_KEY, '1');
+  } catch {
+    /* ignore */
+  }
+}
 
 function loadToken(): Token | null {
   try {
@@ -75,6 +85,20 @@ export function isSignedIn(): boolean {
   return getAccessToken() !== null;
 }
 
+/** トークンの残り時間(ミリ秒)。無ければ 0 */
+export function tokenRemainingMs(): number {
+  return token ? Math.max(0, token.expiresAt - Date.now()) : 0;
+}
+
+/** 以前サインインしていて、まだ自分でサインアウトしていないか */
+export function hasSignInIntent(): boolean {
+  try {
+    return localStorage.getItem(INTENT_KEY) === '1';
+  } catch {
+    return false;
+  }
+}
+
 let gisLoading: Promise<void> | null = null;
 function loadGis(): Promise<void> {
   if (window.google?.accounts?.oauth2) return Promise.resolve();
@@ -110,6 +134,11 @@ export async function signIn(silent = false): Promise<void> {
           accessToken: resp.access_token,
           expiresAt: Date.now() + (resp.expires_in ?? 3600) * 1000,
         });
+        try {
+          localStorage.setItem(INTENT_KEY, '1');
+        } catch {
+          /* ignore */
+        }
         resolve();
       },
       error_callback: (err) => reject(new AuthError(err.message ?? err.type)),
@@ -120,6 +149,11 @@ export async function signIn(silent = false): Promise<void> {
 
 export function signOut(): void {
   const t = token?.accessToken;
+  try {
+    localStorage.removeItem(INTENT_KEY);
+  } catch {
+    /* ignore */
+  }
   setToken(null);
   if (t && window.google?.accounts?.oauth2) window.google.accounts.oauth2.revoke(t);
 }
