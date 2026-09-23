@@ -4,6 +4,7 @@ import { WEEKDAYS_JA, formatTime } from '../lib/date.ts';
 import { getDayInfo } from '../lib/dayInfo.ts';
 import type { CalEvent } from '../lib/google/calendar.ts';
 import type { DiaryEntry, DiaryImage, SaveState, Stroke } from '../lib/diary.ts';
+import type { InkState } from '../lib/ink.ts';
 import { fileBlobUrl } from '../lib/google/drive.ts';
 import Handwriting from './Handwriting.tsx';
 import { installSwipe } from '../lib/swipe.ts';
@@ -25,6 +26,10 @@ interface Props {
   wide: boolean;
   onToggleWide(): void;
   onSendYohaku(): void;
+  /** 前日・翌日へ(delta = -1 / +1) */
+  onNavigate(delta: number): void;
+  ink: InkState;
+  onInkChange(next: InkState): void;
 }
 
 const SAVE_LABEL: Record<SaveState, string> = {
@@ -146,8 +151,16 @@ export default function DayPanel(p: Props) {
       <header className="day-head">
         <div>
           <div className="day-title">
-            {p.date.getMonth() + 1}月{p.date.getDate()}日
-            <span className={'day-week' + (info.isSunday || info.holiday ? ' sun' : info.isSaturday ? ' sat' : '')}>({weekday})</span>
+            <button type="button" className="icon-btn day-nav" aria-label="前の日" title="前の日(← キー)" onClick={() => p.onNavigate(-1)}>
+              ‹
+            </button>
+            <span className="day-title-text">
+              {p.date.getMonth() + 1}月{p.date.getDate()}日
+              <span className={'day-week' + (info.isSunday || info.holiday ? ' sun' : info.isSaturday ? ' sat' : '')}>({weekday})</span>
+            </span>
+            <button type="button" className="icon-btn day-nav" aria-label="次の日" title="次の日(→ キー)" onClick={() => p.onNavigate(1)}>
+              ›
+            </button>
           </div>
           <div className="day-meta">
             {info.holiday && <span className="tag holiday">{info.holiday}</span>}
@@ -264,6 +277,8 @@ export default function DayPanel(p: Props) {
           <Handwriting
             strokes={p.entry.strokes}
             height={p.entry.canvasHeight || 700}
+            ink={p.ink}
+            onInkChange={p.onInkChange}
             onChange={(strokes: Stroke[]) => p.onChangeEntry({ strokes })}
             onHeightChange={(h) => p.onChangeEntry({ canvasHeight: h })}
           />

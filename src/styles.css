@@ -557,17 +557,18 @@ button {
   display: flex;
   align-items: center;
   gap: 4px;
-  min-height: 22px;
+  min-height: 30px;
 }
 .cell-num {
-  font-size: 12px;
-  min-width: 22px;
-  height: 22px;
+  font-size: 18px;
+  font-weight: 500;
+  min-width: 30px;
+  height: 30px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  border-radius: 11px;
-  padding: 0 4px;
+  border-radius: 15px;
+  padding: 0 6px;
 }
 .cell.sun .cell-num {
   color: var(--red);
@@ -580,7 +581,7 @@ button {
   color: #fff;
 }
 .cell-holiday {
-  font-size: 10px;
+  font-size: 12px;
   color: var(--red);
   white-space: nowrap;
   overflow: hidden;
@@ -589,7 +590,7 @@ button {
 .cell-sub {
   display: flex;
   gap: 4px;
-  font-size: 10px;
+  font-size: 12px;
   line-height: 1.2;
   color: var(--muted);
   white-space: nowrap;
@@ -705,6 +706,18 @@ button {
 }
 .day-title {
   font-size: 22px;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+.day-title-text {
+  white-space: nowrap;
+}
+.day-nav {
+  width: 32px;
+  height: 32px;
+  font-size: 26px;
+  color: var(--muted);
 }
 .day-week {
   font-size: 14px;
@@ -1077,7 +1090,10 @@ button {
     padding: 2px 2px 0;
   }
   .cell-sub {
-    font-size: 9px;
+    font-size: 11px;
+  }
+  .cell-num {
+    font-size: 19px;
   }
   .cell-holiday {
     display: none;

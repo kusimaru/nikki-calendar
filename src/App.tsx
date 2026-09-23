@@ -23,7 +23,7 @@ import {
   saveSettings,
   type InkSettings,
 } from './lib/layers.ts';
-import { defaultInkState, inkLog, type InkState } from './lib/ink.ts';
+import { INK_SIZES, defaultInkState, inkLog, type InkState } from './lib/ink.ts';
 import { emptyMonthInk, freeOf, loadMonthInk, monthKey, saveMonthInk, type MonthInk } from './lib/monthInk.ts';
 import { addDays, addMonths, monthGrid, ymdKey } from './lib/date.ts';
 import { AuthError, hasClientId, isSignedIn, onAuthChange, signIn, signOut } from './lib/google/auth.ts';
@@ -53,11 +53,6 @@ import {
 } from './lib/diary.ts';
 
 const SELECTED_CALS_KEY = 'selected_calendars';
-const INK_SIZES: [string, number][] = [
-  ['細', 1.5],
-  ['中', 2.5],
-  ['太', 4],
-];
 
 type EditorState = { mode: 'create'; date: Date } | { mode: 'edit'; event: CalEvent } | null;
 
@@ -96,7 +91,8 @@ function DebugOverlay() {
 
 export default function App() {
   const [month, setMonth] = useState(() => new Date(new Date().getFullYear(), new Date().getMonth(), 1));
-  const [selected, setSelected] = useState<Date | null>(null);
+  const [selectedRaw, setSelectedRaw] = useState<Date | null>(null);
+  const selected = selectedRaw;
   const [signedIn, setSignedIn] = useState(isSignedIn());
   const [calendars, setCalendars] = useState<CalendarInfo[]>([]);
   const [hiddenCals, setHiddenCals] = useState<Set<string>>(() => {
@@ -128,7 +124,30 @@ export default function App() {
     }
   };
   const [loadingEvents, setLoadingEvents] = useState(false);
-  const [inkMode, setInkMode] = useState(false);
+  const [inkMode, setInkModeRaw] = useState(false);
+  // 手書きモードと日付の詳細パネルは同時に開かない(ペン設定の表示が二重にならないようにする)
+  const setSelected = (d: Date | null) => {
+    setSelectedRaw(d);
+    if (d) setInkModeRaw(false);
+  };
+  const setInkMode = (v: boolean | ((prev: boolean) => boolean)) => {
+    setInkModeRaw((prev) => {
+      const next = typeof v === 'function' ? v(prev) : v;
+      if (next) setSelectedRaw(null);
+      return next;
+    });
+  };
+  // 詳細パネル内の前日・翌日移動(月をまたいだら月表示も追従)
+  const navigateDay = (delta: number) => {
+    setSelectedRaw((cur) => {
+      if (!cur) return cur;
+      const next = addDays(cur, delta);
+      if (next.getMonth() !== cur.getMonth() || next.getFullYear() !== cur.getFullYear()) {
+        setMonth(new Date(next.getFullYear(), next.getMonth(), 1));
+      }
+      return next;
+    });
+  };
   const [inkState, setInkState] = useState<InkState>(() => defaultInkState(INK_SIZES[1][1]));
   const [monthInk, setMonthInk] = useState<MonthInk | null>(null);
   const [inkSave, setInkSave] = useState<SaveState>('idle');
@@ -555,6 +574,8 @@ export default function App() {
       }
       else if (e.key === 'c' && selected && signedIn) setEditor({ mode: 'create', date: selected });
       else if (e.key === 'f' && selected) togglePanelWide();
+      else if (e.key === 'ArrowLeft' && selected) navigateDay(-1);
+      else if (e.key === 'ArrowRight' && selected) navigateDay(1);
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
@@ -779,6 +800,7 @@ export default function App() {
             <li>日付をクリック: その日の予定・日記を開く</li>
             <li>ダブルクリック / c キー: 予定を作成</li>
             <li>f キー: 日付の詳細を全画面 / 元に戻す。詳細の上で左へスワイプ=全画面、右へ=戻す / 閉じる</li>
+            <li>← →: 詳細を開いたまま前の日 / 次の日へ</li>
             <li>t: 今日, j/k: 翌月/前月</li>
             <li>✎ 手書き: 押すと月表示の上に直接書けます。書き終えたら「完了」</li>
           </ul>
@@ -848,6 +870,9 @@ export default function App() {
             wide={panelWide}
             onToggleWide={togglePanelWide}
             onSendYohaku={() => setYohakuTarget('day')}
+            onNavigate={navigateDay}
+            ink={inkState}
+            onInkChange={setInkState}
           />
         )}
       </div>

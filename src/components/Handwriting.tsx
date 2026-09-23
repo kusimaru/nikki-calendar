@@ -1,19 +1,17 @@
 // 手書きキャンバス(日別パネル用。Apple Pencil / 液タブ / マウス / 指 対応)
 import { useCallback, useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from 'react';
 import type { Stroke } from '../lib/diary.ts';
-import { blockTouchGestures, cachedPath, defaultInkState, isPrimaryButton, logPointer, outlinePath, pressureOf, type InkState } from '../lib/ink.ts';
+import { INK_SIZES, blockTouchGestures, cachedPath, isPrimaryButton, logPointer, outlinePath, pressureOf, type InkState } from '../lib/ink.ts';
 import InkToolbar from './InkToolbar.tsx';
 
 export const LOGICAL_WIDTH = 1000;
-const SIZES: [string, number][] = [
-  ['細', 2],
-  ['中', 3],
-  ['太', 6],
-];
 
 interface Props {
   strokes: Stroke[];
   height: number;
+  /** ペン設定(カレンダー上の手書きと共通) */
+  ink: InkState;
+  onInkChange(next: InkState): void;
   onChange(strokes: Stroke[]): void;
   onHeightChange(height: number): void;
 }
@@ -25,12 +23,11 @@ function paintStrokes(ctx: CanvasRenderingContext2D, strokes: Stroke[]) {
   }
 }
 
-export default function Handwriting({ strokes, height, onChange, onHeightChange }: Props) {
+export default function Handwriting({ strokes, height, ink, onInkChange, onChange, onHeightChange }: Props) {
   const wrapRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const committedRef = useRef<HTMLCanvasElement | null>(null);
   const [width, setWidth] = useState(0);
-  const [ink, setInk] = useState<InkState>(() => defaultInkState(SIZES[1][1]));
   const penSeen = useRef(false);
   const drawing = useRef<{ pointerId: number; pen: boolean; points: number[][] } | null>(null);
   const strokesRef = useRef(strokes);
@@ -183,9 +180,9 @@ export default function Handwriting({ strokes, height, onChange, onHeightChange 
     <div className="hw">
       <InkToolbar
         state={ink}
-        sizes={SIZES}
+        sizes={INK_SIZES}
         canUndo={strokes.length > 0}
-        onChange={setInk}
+        onChange={onInkChange}
         onUndo={() => onChange(strokes.slice(0, -1))}
         onClear={() => onChange([])}
         extra={
