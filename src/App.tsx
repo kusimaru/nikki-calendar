@@ -168,6 +168,12 @@ export default function App() {
   const [slide, setSlide] = useState<'left' | 'right' | null>(null);
   const [yohakuTarget, setYohakuTarget] = useState<'month' | 'day' | null>(null);
   const [panelWide, setPanelWide] = useState(() => localStorage.getItem('panel_wide') === '1');
+  const [showRokuyo, setShowRokuyo] = useState(() => localStorage.getItem('show_rokuyo') !== '0');
+  const toggleRokuyo = () =>
+    setShowRokuyo((v) => {
+      localStorage.setItem('show_rokuyo', v ? '0' : '1');
+      return !v;
+    });
   const togglePanelWide = () =>
     setPanelWide((v) => {
       localStorage.setItem('panel_wide', v ? '0' : '1');
@@ -618,6 +624,9 @@ export default function App() {
         </h1>
         {loadingEvents && <span className="muted small">読み込み中…</span>}
         <span className="spacer" />
+        <button type="button" className={'btn' + (showRokuyo ? ' active' : '')} onClick={toggleRokuyo} title="六曜の表示 / 非表示">
+          六曜
+        </button>
         <button
           type="button"
           className={'btn' + (inkMode ? ' active' : '')}
@@ -816,6 +825,7 @@ export default function App() {
             eventsByDay={eventsByDay}
             diaryDays={diaryDays}
             selectedKey={selectedKey}
+            showRokuyo={showRokuyo}
             onSelect={(d) => setSelected(d)}
             onCreate={(d) => {
               setSelected(d);

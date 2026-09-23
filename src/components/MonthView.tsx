@@ -18,6 +18,8 @@ interface Props {
   onSelect(date: Date): void;
   onCreate(date: Date): void;
   onOpenEvent(ev: CalEvent): void;
+  /** 六曜を表示するか */
+  showRokuyo: boolean;
   ink?: {
     strokes: Stroke[];
     state: InkState;
@@ -29,7 +31,7 @@ interface Props {
   };
 }
 
-export default function MonthView({ year, month0, eventsByDay, diaryDays, selectedKey, onSelect, onCreate, onOpenEvent, ink }: Props) {
+export default function MonthView({ year, month0, eventsByDay, diaryDays, selectedKey, onSelect, onCreate, onOpenEvent, showRokuyo, ink }: Props) {
   const today = new Date();
   const weeks = monthGrid(year, month0);
   const bodyRef = useRef<HTMLDivElement>(null);
@@ -71,12 +73,16 @@ export default function MonthView({ year, month0, eventsByDay, diaryDays, select
                 >
                   <div className="cell-head">
                     <span className="cell-num">{d.getDate() === 1 ? `${d.getMonth() + 1}/1` : d.getDate()}</span>
-                    {info.holiday && <span className="cell-holiday">{info.holiday}</span>}
+                    <div className="cell-right">
+                      {showRokuyo && <span className="cell-rokuyo">{info.rokuyo}</span>}
+                      {info.seasonal.slice(0, 2).map((s) => (
+                        <span key={s} className="cell-season">
+                          {s}
+                        </span>
+                      ))}
+                    </div>
                   </div>
-                  <div className="cell-sub">
-                    <span className="cell-rokuyo">{info.rokuyo}</span>
-                    {info.seasonal.length > 0 && <span className="cell-season">{info.seasonal.join('・')}</span>}
-                  </div>
+                  {info.holiday && <div className="cell-holiday">{info.holiday}</div>}
                   {diaryDays.has(key) && <span className="cell-diary" title="日記あり">✎</span>}
                   <div className="chips">
                     {events.slice(0, MAX_CHIPS).map((ev) => (
