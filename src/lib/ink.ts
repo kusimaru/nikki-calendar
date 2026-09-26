@@ -118,40 +118,97 @@ export function blockTouchGestures(
   getScroller?: () => HTMLElement | null,
 ): () => void {
   let lastY: number | null = null;
-  // ペン(stylus)の接触を除いた「指」だけを数える。置いた手のひら + ペン先を 2 本指と誤認しないため
+  let startY: number | null = null;
+  let scrolling = false;
+  let lastStylusAt = 0;
+  const PALM_RADIUS = 22; // これより大きい接触は手のひらとみなす(px)
+  const PEN_GRACE_MS = 1500; // ペンを離してからこの時間は指スクロールを受け付けない
+  const START_MOVE_PX = 14; // これ以上動いてから初めてスクロールを始める(置いた手のわずかな揺れを無視)
+
+  const hasStylus = (e: TouchEvent) => {
+    for (let i = 0; i < e.touches.length; i++) {
+      if ((e.touches[i] as Touch & { touchType?: string }).touchType === 'stylus') return true;
+    }
+    return false;
+  };
+  // ペン(stylus)と手のひら(大きな接触)を除いた「指」だけを数える
   const fingers = (e: TouchEvent): Touch[] => {
     const out: Touch[] = [];
     for (let i = 0; i < e.touches.length; i++) {
       const t = e.touches[i] as Touch & { touchType?: string };
-      if (t.touchType !== 'stylus') out.push(t);
+      if (t.touchType === 'stylus') continue;
+      const radius = Math.max(t.radiusX || 0, t.radiusY || 0);
+      if (radius > PALM_RADIUS) continue;
+      out.push(t);
     }
     return out;
   };
   const avgY = (ts: Touch[]) => ts.reduce((sum, t) => sum + t.clientY, 0) / ts.length;
+  const stop = () => {
+    lastY = null;
+    startY = null;
+    scrolling = false;
+  };
   const onStart = (e: TouchEvent) => {
     if (!isActive()) return;
     if (e.cancelable) e.preventDefault();
+    if (hasStylus(e)) {
+      lastStylusAt = Date.now();
+      stop();
+      return;
+    }
     const f = fingers(e);
-    lastY = f.length >= 2 ? avgY(f) : null;
+    if (f.length >= 2 && Date.now() - lastStylusAt > PEN_GRACE_MS) {
+      lastY = avgY(f);
+      startY = lastY;
+      scrolling = false;
+    } else {
+      stop();
+    }
   };
   const onMove = (e: TouchEvent) => {
     if (!isActive()) return;
     if (e.cancelable) e.preventDefault();
-    const f = fingers(e);
-    if (f.length >= 2) {
-      const y = avgY(f);
-      if (lastY !== null) {
-        const sc = getScroller?.();
-        if (sc) sc.scrollTop -= y - lastY;
-      }
-      lastY = y;
-    } else {
-      lastY = null;
+    // ペンが触れている間、または離した直後は指でスクロールしない(手を置いて書くときの誤動作防止)
+    if (hasStylus(e)) {
+      lastStylusAt = Date.now();
+      stop();
+      return;
     }
+    if (Date.now() - lastStylusAt <= PEN_GRACE_MS) {
+      stop();
+      return;
+    }
+    const f = fingers(e);
+    if (f.length < 2) {
+      stop();
+      return;
+    }
+    const y = avgY(f);
+    if (lastY === null || startY === null) {
+      lastY = y;
+      startY = y;
+      return;
+    }
+    if (!scrolling && Math.abs(y - startY) < START_MOVE_PX) return;
+    scrolling = true;
+    const sc = getScroller?.();
+    if (sc) sc.scrollTop -= y - lastY;
+    lastY = y;
   };
   const onEnd = (e: TouchEvent) => {
+    if (hasStylus(e)) lastStylusAt = Date.now();
+    for (let i = 0; i < e.changedTouches.length; i++) {
+      if ((e.changedTouches[i] as Touch & { touchType?: string }).touchType === 'stylus') lastStylusAt = Date.now();
+    }
     const f = fingers(e);
-    lastY = f.length >= 2 ? avgY(f) : null;
+    if (f.length >= 2) {
+      lastY = avgY(f);
+      startY = lastY;
+      scrolling = false;
+    } else {
+      stop();
+    }
   };
   el.addEventListener('touchstart', onStart, { passive: false });
   el.addEventListener('touchmove', onMove, { passive: false });
