@@ -23,8 +23,15 @@ interface Props {
   uniform?: boolean;
   /** uniform 時、下端近くまで描いたら呼ぶ */
   onNearBottom?(): void;
+  /**
+   * グリッドの週数(4〜6)。線の縦座標は常に「6 週分の高さ = 1000」で保存するので、
+   * 週数が変わっても線が同じマス目の上に載る
+   */
+  rows?: number;
   onChange(strokes: Stroke[]): void;
 }
+
+const FULL_ROWS = 6;
 
 export function layerOf(s: Stroke): string {
   return s.layer ?? DEFAULT_LAYER_ID;
@@ -64,6 +71,7 @@ export default function MonthInk({
   dimOthers,
   uniform = false,
   onNearBottom,
+  rows = FULL_ROWS,
   onChange,
 }: Props) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -92,10 +100,13 @@ export default function MonthInk({
   dimRef.current = dimOthers;
 
   const dpr = window.devicePixelRatio || 1;
+  const rowsRef = useRef(rows);
+  rowsRef.current = rows;
   const scales = () => {
     const { w, h } = sizeRef.current;
     const sx = w / LOGICAL;
-    return { sx, sy: uniform ? sx : h / LOGICAL };
+    // グリッド: 表示中の週数ぶんの高さが、論理座標では 1000 × rows / 6 に相当する
+    return { sx, sy: uniform ? sx : (h / LOGICAL) * (FULL_ROWS / rowsRef.current) };
   };
 
   const renderAll = () => {
@@ -154,7 +165,7 @@ export default function MonthInk({
   useEffect(() => {
     renderAll();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [strokes, active, activeLayer, hiddenLayers, dimOthers]);
+  }, [strokes, active, activeLayer, hiddenLayers, dimOthers, rows]);
 
   // ペン先のカーソル(太さと同じ直径の円)
   useEffect(() => {

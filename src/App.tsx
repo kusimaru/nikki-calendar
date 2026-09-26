@@ -274,7 +274,7 @@ export default function App() {
   // ---- 予定の取得 ----
   const range = useMemo(() => {
     const g = monthGrid(year, month0);
-    return { from: g[0][0], to: addDays(g[5][6], 1) };
+    return { from: g[0][0], to: addDays(g[g.length - 1][6], 1) };
   }, [year, month0]);
 
   const refreshEvents = useCallback(async () => {

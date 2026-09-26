@@ -69,10 +69,13 @@ test('日の干支と土用の丑', () => {
   assert.ok(seasonalNames(2025, 7, 31).includes('二の丑'));
 });
 
-test('月曜始まりグリッド', () => {
-  const g = monthGrid(2026, 8); // 2026-09
-  assert.equal(g.length, 6);
+test('月曜始まりグリッド(その月の日を含む週だけ)', () => {
+  const g = monthGrid(2026, 8); // 2026-09: 火曜始まり 30 日 → 5 週
+  assert.equal(g.length, 5);
   assert.equal(g[0][0].getDay(), 1);
   assert.equal(g[0][0].getDate(), 31); // 8/31 (月)
   assert.equal(g[0][1].getDate(), 1);
+  assert.equal(g[4][6].getDate(), 4); // 最終週の残りは 10/1〜10/4
+  assert.equal(monthGrid(2026, 2).length, 6); // 2026-03: 日曜始まり 31 日 → 6 週
+  assert.equal(monthGrid(2027, 1).length, 4); // 2027-02: 月曜始まり 28 日 → 4 週
 });

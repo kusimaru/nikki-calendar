@@ -405,7 +405,7 @@ button {
 .month-body {
   flex: 1;
   display: grid;
-  grid-template-rows: repeat(6, 1fr);
+  grid-template-rows: repeat(6, 1fr); /* 実際の週数はインラインで上書き */
   min-height: 0;
   position: relative;
 }

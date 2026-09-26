@@ -45,7 +45,11 @@ export default function MonthView({ year, month0, eventsByDay, diaryDays, select
           </div>
         ))}
       </div>
-      <div ref={bodyRef} className={'month-body' + (ink?.active ? ' inking' : '')}>
+      <div
+        ref={bodyRef}
+        className={'month-body' + (ink?.active ? ' inking' : '')}
+        style={{ gridTemplateRows: `repeat(${weeks.length}, 1fr)` }}
+      >
         {weeks.map((week, wi) => (
           <div key={wi} className="month-row">
             {week.map((d) => {
@@ -118,6 +122,7 @@ export default function MonthView({ year, month0, eventsByDay, diaryDays, select
             activeLayer={ink.activeLayer}
             hiddenLayers={ink.hiddenLayers}
             dimOthers={ink.dimOthers}
+            rows={weeks.length}
             onChange={ink.onChange}
           />
         )}

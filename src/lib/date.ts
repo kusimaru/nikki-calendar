@@ -26,13 +26,15 @@ export function addMonths(d: Date, n: number): Date {
   return new Date(d.getFullYear(), d.getMonth() + n, 1);
 }
 
-/** 月曜始まりの 6 週 × 7 日グリッド */
+/** 月曜始まりの週グリッド。その月の日を含む週だけ(4〜6 週)。翌月だけの週は含めない */
 export function monthGrid(year: number, month0: number): Date[][] {
   const first = new Date(year, month0, 1);
   const offset = (first.getDay() + 6) % 7; // 月曜=0
+  const daysInMonth = new Date(year, month0 + 1, 0).getDate();
+  const rows = Math.ceil((offset + daysInMonth) / 7);
   const start = addDays(first, -offset);
   const weeks: Date[][] = [];
-  for (let w = 0; w < 6; w++) {
+  for (let w = 0; w < rows; w++) {
     const row: Date[] = [];
     for (let i = 0; i < 7; i++) row.push(addDays(start, w * 7 + i));
     weeks.push(row);
